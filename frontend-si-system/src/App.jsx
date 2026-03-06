@@ -1,18 +1,26 @@
-import MainBackground from './components/mainBackground'
-import Sidebar from './components/sidebar'
-import Navbar from './components/navbar'
+import React from 'react'
+import { Login } from './modules/auth/login'
+import { ForgotPassword } from './modules/auth/forgotPassword'
+import { OtpVerification } from './modules/auth/otpVerification'
+import { ChangePassword } from './modules/auth/changePassword'
+import { DashboardPage } from './modules/pages/dashboardPage'
+import { SalesInvoicePage } from './modules/pages/salesInvoicePage'
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 
 function App() {
   return (
-    <MainBackground>
-      <Sidebar/>
-      <Navbar/>
-      <main className="min-h-screen pl-64 flex items-center justify-center p-6">
-        <div className="rounded-xl bg-white/80 p-8 text-center backdrop-blur-sm">
-          <h1 className="text-2xl font-bold text-slate-900">SI SYSTEM</h1>
-        </div>
-      </main>
-    </MainBackground>
+    <div className="flex">
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/otp-verification" element={<OtpVerification />} />
+          <Route path="/change-password" element={<ChangePassword />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/sales-invoice" element={<SalesInvoicePage />} />
+        </Routes>
+      </Router>
+    </div>
   )
 }
 

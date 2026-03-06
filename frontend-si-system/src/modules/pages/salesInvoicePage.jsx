@@ -1,6 +1,6 @@
 import React from 'react'
 
-export const salesInvoicePage = () => {
+export const SalesInvoicePage = () => {
   return (
     <div>salesInvoicePage</div>
   )
