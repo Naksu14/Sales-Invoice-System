@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import AuthBackground from '../../components/auth/authBackground'
 import Container from '../../components/auth/container'
 import AuthButton from '../../components/auth/button'
+import { queryClient } from '../../services/queryClient'
 
 export const Login = () => {
     const navigate = useNavigate()
@@ -17,7 +18,14 @@ export const Login = () => {
     const email = form.email.value
     const password = form.password.value
         try {
-            await login(email, password)
+            const result = await login(email, password)
+            localStorage.setItem('access_token', result.access_token)
+            sessionStorage.setItem('access_token', result.access_token)
+          localStorage.setItem('user', JSON.stringify(result.user))
+          sessionStorage.setItem('user', JSON.stringify(result.user))
+          queryClient.setQueryData(['currentUser'], result.user)
+            
+            
             navigate('/dashboard')
         } catch (error) {
         setErrorMessage('Login failed. Please check your credentials and try again.')

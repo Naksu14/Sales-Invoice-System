@@ -27,7 +27,7 @@ export const OtpVerification = () => {
 
 		try {
 			await verifyOtp(email, otp)
-			navigate('/change-password')
+			navigate('/change-password', { state: { email } })
 		} catch (error) {
 			console.error('OTP verification failed:', error)
 			const message =

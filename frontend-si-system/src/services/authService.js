@@ -6,6 +6,19 @@ const api = axios.create({
   baseURL: API_URL,
 });
 
+export const getCurrentUser = async () => {
+  const rawUser = localStorage.getItem('user') || sessionStorage.getItem('user');
+  if (!rawUser) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawUser);
+  } catch {
+    return null;
+  }
+};
+
 export const login = async (email, password) => {
   try {
     const response = await api.post("/auth/login", { email, password });

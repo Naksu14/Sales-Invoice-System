@@ -59,6 +59,12 @@ export class AuthService {
     };
   }
 
+  async getProfile() {
+    return {
+      message: 'Profile retrieved successfully',
+    };
+  }
+
   async sendOtpInEMail(sendOtpDto: SendOtpDto) {
     const { email } = sendOtpDto;
 
