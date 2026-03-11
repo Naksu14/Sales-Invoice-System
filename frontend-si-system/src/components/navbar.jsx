@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 
 function Navbar() {
 	const navigate = useNavigate()
+	
 	const { data: user } = useQuery({
 		queryKey: ['currentUser'],
 		queryFn: getCurrentUser,

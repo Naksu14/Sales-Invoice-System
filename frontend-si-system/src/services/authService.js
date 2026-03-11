@@ -6,15 +6,19 @@ const api = axios.create({
   baseURL: API_URL,
 });
 
-export const getCurrentUser = async () => {
-  const rawUser = localStorage.getItem('user') || sessionStorage.getItem('user');
-  if (!rawUser) {
-    return null;
-  }
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
+export const getCurrentUser = async () => {
   try {
-    return JSON.parse(rawUser);
-  } catch {
+    const response = await api.get("/auth/profile", {
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Failed to fetch current user:', error);
     return null;
   }
 };

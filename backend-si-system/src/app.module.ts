@@ -2,10 +2,10 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { getTypeOrmConfig } from './config/typeorm.config';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { SiUsersModule } from './modules/si-users/si-users.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { InvoiceNameModule } from './modules/invoice-name/invoice-name.module';
+import { SpreadsheetsModule } from './modules/spreadsheets/spreadsheets.module';
 
 @Module({
   imports: [
@@ -16,7 +16,9 @@ import { AuthModule } from './modules/auth/auth.module';
       inject: [ConfigService],
     }),
     SiUsersModule,
-    AuthModule
+    AuthModule,
+    InvoiceNameModule,
+    SpreadsheetsModule
   ],
 })
 export class AppModule {}

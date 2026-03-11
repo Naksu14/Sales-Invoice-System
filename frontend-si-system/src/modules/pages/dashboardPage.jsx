@@ -9,9 +9,8 @@ import SearchIcon from '@mui/icons-material/Search'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import { BarChart } from '@mui/x-charts/BarChart'
 import { PieChart } from '@mui/x-charts/PieChart'
-import MainBackground from '../../components/mainBackground'
-import Sidebar from '../../components/sidebar'
-import Navbar from '../../components/navbar'
+import { PageLayout } from '../../components/pageLayout'
+import Button from '../../components/ui/Button'
 
 const monthlyData = [120, 68, 103, 106, 45]
 const venturesData = [45, 83, 78, 50, 112]
@@ -35,11 +34,8 @@ const recentInvoices = Array.from({ length: 6 }, (_, index) => ({
 
 export const DashboardPage = () => {
   return (
-    <MainBackground>
-      <Sidebar/>
-      <Navbar/>
-      <main className="min-h-screen w-full pl-80 pt-24 pr-4 pb-4">
-        <div className="space-y-4">
+    <PageLayout>
+      <div className="space-y-4">
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight text-slate-700">DASHBOARD</h1>
@@ -53,13 +49,7 @@ export const DashboardPage = () => {
                 <FileUploadIcon fontSize="small" />
                 Export
               </button>
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 rounded-md bg-[#222625] px-4 py-2 text-sm font-semibold text-white transition-all duration-200 hover:bg-[#e7e98a] hover:border-[#e7e98a] hover:text-[#222625]"
-              >
-                <NoteAddIcon fontSize="small" />
-                Create Invoice
-              </button>
+              <Button leftIcon={<NoteAddIcon fontSize="small" />}>Create Invoice</Button>
             </div>
           </div>
 
@@ -217,8 +207,7 @@ export const DashboardPage = () => {
               </div>
             </div>
           </div>
-        </div>
-      </main>
-    </MainBackground>
+      </div>
+    </PageLayout>
   )
 }

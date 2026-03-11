@@ -1,18 +1,17 @@
 import React, { useEffect, useState } from 'react'
 import PersonIcon from '@mui/icons-material/Person'
 import LockIcon from '@mui/icons-material/Lock'
-import MainBackground from '../../components/mainBackground'
-import Sidebar from '../../components/sidebar'
-import Navbar from '../../components/navbar'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { PageLayout } from '../../components/pageLayout'
 import { getCurrentUser, resetPassword } from '../../services/authService'
 import { updateUserProfile } from '../../services/userServices'
-import { queryClient } from '../../services/queryClient'
 
 export const UserAccountPage = () => {
+  const queryClient = useQueryClient()
+
   const { data: user } = useQuery({
     queryKey: ['currentUser'],
-    queryFn: getCurrentUser,
+    queryFn: () => getCurrentUser(),
   })
 
   const [updatedUser, setUpdatedUser] = useState({ full_name: '', email: '' })
@@ -35,8 +34,6 @@ export const UserAccountPage = () => {
       email: user.email || '',
     })
   }, [user])
-
-  const fullName = user?.full_name || ''
 
   const handleSaveProfile = async () => {
     setProfileError('')
@@ -68,7 +65,12 @@ export const UserAccountPage = () => {
 
       localStorage.setItem('user', JSON.stringify(normalizedUser))
       sessionStorage.setItem('user', JSON.stringify(normalizedUser))
+      setUpdatedUser({
+        full_name: normalizedUser.full_name || '',
+        email: normalizedUser.email || '',
+      })
       queryClient.setQueryData(['currentUser'], normalizedUser)
+      await queryClient.invalidateQueries({ queryKey: ['currentUser'] })
       setProfileMessage('Profile updated successfully.')
     } catch (error) {
       setProfileError(error?.message || error?.error || 'Failed to update profile.')
@@ -109,18 +111,15 @@ export const UserAccountPage = () => {
   }
 
   return (
-    <MainBackground>
-      <Sidebar/>
-      <Navbar/>
-      <main className="min-h-screen w-full pl-80 pt-24 pr-4 pb-4">
-        <div className="mx-auto w-full max-w-[1240px] space-y-6">
+    <PageLayout>
+      <div className="mx-auto w-full space-y-6">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-slate-700">PROFILE SETTINGS</h1>
             <p className="mt-1 text-lg text-slate-500">Manage your account settings</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <section className="rounded-md border border-slate-300 bg-white p-5 shadow-sm md:min-w-[400px]">
+          <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-3 gap-4 ">
+            <section className="rounded-md border border-slate-300 bg-white p-5 shadow-sm">
               <div className="mb-6 flex items-center gap-2 text-slate-600">
                 <PersonIcon sx={{ fontSize: 18 }} />
                 <h2 className="text-sm font-semibold tracking-wide">PERSONAL INFORMATION</h2>
@@ -131,7 +130,7 @@ export const UserAccountPage = () => {
                   <span className="mb-1 block">Full Name</span>
                   <input
                     type="text"
-                    value={updatedUser.full_name || fullName}
+                    value={updatedUser.full_name}
                     onChange={(e) => setUpdatedUser((prev) => ({ ...prev, full_name: e.target.value }))}
                     className="h-10 w-full rounded-sm border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 outline-none focus:border-slate-300"
                   />
@@ -141,7 +140,7 @@ export const UserAccountPage = () => {
                   <span className="mb-1 block">Email Address</span>
                   <input
                     type="email"
-                    value={updatedUser.email || user?.email || ''}
+                    value={updatedUser.email}
                     onChange={(e) => setUpdatedUser((prev) => ({ ...prev, email: e.target.value }))}
                     className="h-10 w-full rounded-sm border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 outline-none focus:border-slate-300"
                   />
@@ -169,18 +168,18 @@ export const UserAccountPage = () => {
                 </button>
               </div>
               {profileError && (
-                <div className="mx-auto mt-3 w-full max-w-[520px] rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                <div className="text-center mx-auto mt-3 w-full max-w-[520px] rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                   {profileError}
                 </div>
               )}
               {profileMessage && (
-                <div className="mx-auto mt-3 w-full max-w-[520px] rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+                <div className="text-center mx-auto mt-3 w-full max-w-[520px] rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
                   {profileMessage}
                 </div>
               )}
             </section>
 
-            <section className="rounded-md border border-slate-300 bg-white p-5 shadow-sm md:min-w-[400px]">
+            <section className="rounded-md border border-slate-300 bg-white p-5 shadow-sm">
               <div className="mb-6 flex items-center gap-2 text-slate-600">
                 <LockIcon sx={{ fontSize: 18 }} />
                 <h2 className="text-sm font-semibold tracking-wide">PASSWORD AND SECURITY</h2>
@@ -232,19 +231,18 @@ export const UserAccountPage = () => {
                 </button>
               </div>
               {passwordError && (
-                <div className="mx-auto mt-3 w-full max-w-[520px] rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                <div className="text-center mx-auto mt-3 w-full max-w-[520px] rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                   {passwordError}
                 </div>
               )}
               {passwordMessage && (
-                <div className="mx-auto mt-3 w-full max-w-[520px] rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+                <div className="text-center mx-auto mt-3 w-full max-w-[520px] rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
                   {passwordMessage}
                 </div>
               )}
             </section>
           </div>
-        </div>
-      </main>
-    </MainBackground>
+      </div>
+    </PageLayout>
   )
 }

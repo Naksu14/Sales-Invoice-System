@@ -59,9 +59,20 @@ export class AuthService {
     };
   }
 
-  async getProfile() {
+  async getCurrentUser(userId: number) {
+    const user = await this.siUserRepository.findOne({
+      where: { user_id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
     return {
-      message: 'Profile retrieved successfully',
+      user_id: user.user_id,
+      full_name: user.full_name,
+      email: user.email,
+      role: user.role,
     };
   }
 

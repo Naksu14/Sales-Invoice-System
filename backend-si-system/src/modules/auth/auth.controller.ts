@@ -1,9 +1,10 @@
-import { Controller, Post, Body, Patch, Get } from '@nestjs/common';
+import { Controller, Post, Body, Patch, Get, UseGuards, Request } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateAuthDto } from './dto/create-auth.dto';
 import { SendOtpDto } from './dto/send-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -14,9 +15,10 @@ export class AuthController {
     return this.authService.login(createAuthDto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('profile')
-  getProfile() {
-    return this.authService.getProfile();
+  getCurrentUser(@Request() req) {
+    return this.authService.getCurrentUser(req.user.sub);
   }
 
   @Post('send-otp')
