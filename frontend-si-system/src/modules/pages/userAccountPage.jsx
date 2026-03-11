@@ -3,6 +3,7 @@ import PersonIcon from '@mui/icons-material/Person'
 import LockIcon from '@mui/icons-material/Lock'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { PageLayout } from '../../components/pageLayout'
+import Tooltip from '@mui/material/Tooltip'
 import { getCurrentUser, resetPassword } from '../../services/authService'
 import { updateUserProfile } from '../../services/userServices'
 
@@ -158,14 +159,16 @@ export const UserAccountPage = () => {
               </div>
 
               <div className="mx-auto mt-8 flex w-full max-w-[520px] justify-end">
-                <button
-                  type="button"
-                  onClick={handleSaveProfile}
-                  disabled={profileLoading}
-                  className="rounded-md bg-black px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-[#222625]"
-                >
-                  {profileLoading ? 'Saving...' : 'Save Changes'}
-                </button>
+                <Tooltip title="Save profile changes">
+                  <button
+                    type="button"
+                    onClick={handleSaveProfile}
+                    disabled={profileLoading}
+                    className="rounded-md bg-black px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-[#222625]"
+                  >
+                    {profileLoading ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </Tooltip>
               </div>
               {profileError && (
                 <div className="text-center mx-auto mt-3 w-full max-w-[520px] rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -221,14 +224,16 @@ export const UserAccountPage = () => {
               </div>
 
               <div className="mx-auto mt-8 flex w-full max-w-[520px] justify-end">
-                <button
-                  type="button"
-                  onClick={handleUpdatePassword}
-                  disabled={passwordLoading}
-                  className="rounded-md bg-black px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-[#222625]"
-                >
-                  {passwordLoading ? 'Updating...' : 'Update'}
-                </button>
+                <Tooltip title="Update password">
+                  <button
+                    type="button"
+                    onClick={handleUpdatePassword}
+                    disabled={passwordLoading}
+                    className="rounded-md bg-black px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-[#222625]"
+                  >
+                    {passwordLoading ? 'Updating...' : 'Update'}
+                  </button>
+                </Tooltip>
               </div>
               {passwordError && (
                 <div className="text-center mx-auto mt-3 w-full max-w-[520px] rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

@@ -11,6 +11,7 @@ import { BarChart } from '@mui/x-charts/BarChart'
 import { PieChart } from '@mui/x-charts/PieChart'
 import { PageLayout } from '../../components/pageLayout'
 import Button from '../../components/ui/Button'
+import Tooltip from '@mui/material/Tooltip'
 
 const monthlyData = [120, 68, 103, 106, 45]
 const venturesData = [45, 83, 78, 50, 112]
@@ -42,14 +43,18 @@ export const DashboardPage = () => {
               <p className="mt-1 text-lg text-slate-500">Financial overview and analytics</p>
             </div>
             <div className="flex items-center gap-3 px-4 py-3">
-              <button
-                type="button"
-                className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-100/80 hover:border-slate-400 hover:text-slate-900"
-              >
-                <FileUploadIcon fontSize="small" />
-                Export
-              </button>
-              <Button leftIcon={<NoteAddIcon fontSize="small" />}>Create Invoice</Button>
+              <Tooltip title="Export current table as CSV">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-100/80 hover:border-slate-400 hover:text-slate-900"
+                >
+                  <FileUploadIcon fontSize="small" />
+                  Export
+                </button>
+              </Tooltip>
+              <Button leftIcon={<NoteAddIcon fontSize="small" />} tooltip="Create a new invoice">
+                Create Invoice
+              </Button>
             </div>
           </div>
 
@@ -160,12 +165,14 @@ export const DashboardPage = () => {
                           <td className="border-b border-slate-200 px-4 py-4">{invoice.serviceType}</td>
                           <td className="border-b border-slate-200 px-4 py-4">{invoice.amount}</td>
                           <td className="border-b border-slate-200 px-4 py-4">
+                            <Tooltip title="View Invoice Details">
                             <button
                               type="button"
                               className="rounded-md bg-slate-100 p-1.5 text-slate-600 hover:bg-slate-200"
                             >
                               <VisibilityIcon sx={{ fontSize: 18 }} />
                             </button>
+                            </Tooltip>
                           </td>
                         </tr>
                       ))}

@@ -7,6 +7,7 @@ import { getInvoiceNames } from '../../services/invoiceService'
 import { useState, useEffect } from 'react'
 
 import Button from '../../components/ui/Button'
+import Tooltip from '@mui/material/Tooltip'
 import AddSpreadsheetModal from '../../components/modals/AddSpreadsheetModal'
 import { getSpreadsheets } from '../../services/spreadsheetsService'
 
@@ -47,13 +48,14 @@ export const SalesInvoicePage = () => {
             <>
               <div className="inline-flex items-center gap-2 bg-slate-100/80 rounded-xl p-1">
                 {invoiceNames.map((inv) => (
-                  <button
-                    key={inv.id}
-                    onClick={() => setActiveInvoiceId(inv.id)}
-                    className={`rounded-xl px-4 py-2 text-sm font-medium transition-all duration-150 ${activeInvoiceId === inv.id ? 'bg-black text-white shadow-sm' : 'text-slate-600 hover:bg-slate-200'}`}
-                  >
-                    {inv.name}
-                  </button>
+                  <Tooltip key={inv.id} title={`Switch to ${inv.name}`}>
+                    <button
+                      onClick={() => setActiveInvoiceId(inv.id)}
+                      className={`rounded-xl px-4 py-2 text-sm font-medium transition-all duration-150 ${activeInvoiceId === inv.id ? 'bg-black text-white shadow-sm' : 'text-slate-600 hover:bg-slate-200'}`}
+                    >
+                      {inv.name}
+                    </button>
+                  </Tooltip>
                 ))}
               </div>
 
@@ -68,27 +70,28 @@ export const SalesInvoicePage = () => {
                         {spreadsheets
                           .filter(s => (s.invoiceName && s.invoiceName.id === sel.id) || s.invoiceNameId === sel.id || s.invoice_name_id === sel.id)
                           .map((sh) => (
-                            <button
-                              key={sh.id}
-                              onClick={() => setActiveSheetId(sh.id)}
-                              className={`rounded-xl px-4 py-2 text-sm font-medium transition-all duration-150 ${activeSheetId === sh.id ? 'bg-[#d8ea46] text-black shadow-sm' : 'text-slate-600 hover:bg-slate-200'}`}
-                            >
-                              {sh.sheetTabName}
-                            </button>
+                            <Tooltip key={sh.id} title={sh.sheetTabName}>
+                              <button
+                                onClick={() => setActiveSheetId(sh.id)}
+                                className={`rounded-xl px-4 py-2 text-sm font-medium transition-all duration-150 ${activeSheetId === sh.id ? 'bg-[#d8ea46] text-black shadow-sm' : 'text-slate-600 hover:bg-slate-200'}`}
+                              >
+                                {sh.sheetTabName}
+                              </button>
+                            </Tooltip>
                           ))}
-                          <Button variant="primary" size="md" onClick={() => setIsAddModalOpen(true)}>Add Spreadsheet Tab</Button>
+                          <Button variant="primary" size="md" onClick={() => setIsAddModalOpen(true)} tooltip="Add Spreadsheet Tab">Add Spreadsheet Tab</Button>
                       </div>
                       </div>
                     </div>
 
-                    <div className="border-t pt-6 text-center text-slate-400">
+                    <div className="border-t border-slate-200 pt-6 text-center text-slate-400">
                       {/* placeholder for templates list */}
                       <ReceiptLongOutlinedIcon sx={{ fontSize: 48 }} className="mx-auto mb-3 text-slate-300" />
                       <p className="font-semibold">No Templates Created{activeSheet ? ` for ${activeSheet.sheetTabName}` : ''}</p>
                       <p className="max-w-lg mx-auto text-sm mt-2">Get started by creating your first template to organize your data. Define custom fields and structure your information exactly the way you need it.</p>
                       {activeSheetId ? (
                         <div className='mt-4'>
-                          <Button variant="primary" size="md">Create Table Template</Button>
+                          <Button variant="primary" size="md" tooltip="Create Table Template">Create Table Template</Button>
                         </div>
                       ) : null}
                     </div>

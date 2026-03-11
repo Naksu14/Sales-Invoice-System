@@ -5,6 +5,7 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import { PageLayout } from '../../components/pageLayout'
 import Button from '../../components/ui/Button'
+import Tooltip from '@mui/material/Tooltip'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import InvoiceNameModal from '../../components/modals/InvoiceNameModal'
 import ConfirmModal from '../../components/modals/ConfirmModal'
@@ -50,7 +51,7 @@ export const InvoiceProfilePage = () => {
             </div>
             <div>
               {invoiceNames && invoiceNames.length > 0 && (
-                <Button variant="primary" size="md" onClick={() => { setSelectedInvoice(null); setIsModalOpen(true) }}>
+                <Button variant="primary" size="md" onClick={() => { setSelectedInvoice(null); setIsModalOpen(true) }} tooltip="Add a new invoice">
                   <AddCircleOutlineIcon sx={{ fontSize: 16 }} className='mr-2'/>
                   Add New Invoice
                 </Button>
@@ -82,20 +83,22 @@ export const InvoiceProfilePage = () => {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <button
-                        className="text-slate-300 hover:text-slate-800"
-                        title="Edit"
-                        onClick={() => { setSelectedInvoice(item); setIsModalOpen(true) }}
-                      >
-                        <EditOutlinedIcon fontSize="small" />
-                      </button>
-                      <button
-                        className="text-rose-300 hover:text-rose-700"
-                        title="Delete"
-                        onClick={() => handleDelete(item)}
-                      >
-                        <DeleteOutlineIcon fontSize="small" />
-                      </button>
+                      <Tooltip title="Edit">
+                        <button
+                          className="text-slate-300 hover:text-slate-800"
+                          onClick={() => { setSelectedInvoice(item); setIsModalOpen(true) }}
+                        >
+                          <EditOutlinedIcon fontSize="small" />
+                        </button>
+                      </Tooltip>
+                      <Tooltip title="Delete">
+                        <button
+                          className="text-rose-300 hover:text-rose-700"
+                          onClick={() => handleDelete(item)}
+                        >
+                          <DeleteOutlineIcon fontSize="small" />
+                        </button>
+                      </Tooltip>
                     </div>
                   </div>
                 </div>
@@ -123,6 +126,7 @@ export const InvoiceProfilePage = () => {
                     variant="primary"
                     size="md"
                     onClick={() => { setSelectedInvoice(null); setIsModalOpen(true) }}
+                    tooltip="Create a new invoice"
                   >
                     <AddCircleOutlineIcon sx={{ fontSize: 16 }} className='mr-2'/>
                     Create Invoice

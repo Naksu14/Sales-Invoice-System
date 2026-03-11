@@ -1,4 +1,5 @@
 import React from 'react'
+import Tooltip from '@mui/material/Tooltip'
 
 const VARIANTS = {
   primary: 'bg-[#222625] text-white border-transparent hover:bg-[#e7e98a] hover:text-[#222625] hover:border-[#e7e98a]',
@@ -19,17 +20,24 @@ export default function Button({
   leftIcon,
   rightIcon,
   children,
+  tooltip, // optional tooltip string
   ...props
 }) {
   const variantClass = VARIANTS[variant] || VARIANTS.primary
   const sizeClass = SIZES[size] || SIZES.md
   const base = 'inline-flex items-center gap-2 rounded-md font-semibold transition-all duration-200'
 
-  return (
+  const btn = (
     <button className={`${base} ${sizeClass} ${variantClass} ${className}`} {...props}>
       {leftIcon && <span className="flex items-center">{leftIcon}</span>}
       <span>{children}</span>
       {rightIcon && <span className="flex items-center">{rightIcon}</span>}
     </button>
   )
+
+  if (tooltip) {
+    return <Tooltip title={tooltip}>{btn}</Tooltip>
+  }
+
+  return btn
 }
