@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import Button from '../ui/Button'
+import { createPortal } from 'react-dom'
 
 export default function ConfirmModal({
   isOpen,
@@ -23,8 +24,8 @@ export default function ConfirmModal({
 
   const isMatch = requireConfirmationInput ? inputValue.trim() === confirmationPhrase : true
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">
       <div className="w-full max-w-sm rounded-lg bg-white p-5 shadow-lg text-left">
         <div className="mb-3">
           <h3 className="text-lg font-semibold text-slate-700">{title}</h3>
@@ -48,6 +49,7 @@ export default function ConfirmModal({
           <Button variant="danger" size="sm" onClick={onConfirm} type="button" disabled={!isMatch}>{confirmText}</Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

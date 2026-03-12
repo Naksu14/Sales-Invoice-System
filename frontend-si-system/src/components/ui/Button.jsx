@@ -2,7 +2,7 @@ import React from 'react'
 import Tooltip from '@mui/material/Tooltip'
 
 const VARIANTS = {
-  primary: 'bg-[#222625] text-white border-transparent hover:bg-[#e7e98a] hover:text-[#222625] hover:border-[#e7e98a]',
+  primary: 'bg-[#0b2a32] text-white border-transparent hover:bg-[#ACBFA4] hover:text-[#0b2a32] hover:border-[#e7e98a]',
   secondary: 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-100/80',
   ghost: 'bg-transparent text-slate-700 hover:bg-slate-50 border-transparent',
 }
@@ -25,7 +25,7 @@ export default function Button({
 }) {
   const variantClass = VARIANTS[variant] || VARIANTS.primary
   const sizeClass = SIZES[size] || SIZES.md
-  const base = 'inline-flex items-center gap-2 rounded-md font-semibold transition-all duration-200'
+  const base = 'inline-flex items-center gap-2 rounded-md font-lg transition-all duration-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-300 disabled:text-gray-500 disabled:border-gray-300'
 
   const btn = (
     <button className={`${base} ${sizeClass} ${variantClass} ${className}`} {...props}>

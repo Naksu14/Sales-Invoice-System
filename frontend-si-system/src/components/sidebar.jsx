@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import logo from '../assets/images/logo.svg'
+import logo from '../assets/images/updateLogo.svg'
 import DashboardIcon from '@mui/icons-material/Dashboard'
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong'
 import ContactPageIcon from '@mui/icons-material/ContactPage'
@@ -12,7 +12,7 @@ function Sidebar() {
 	const navigate = useNavigate()
 	const [isLogoutOpen, setIsLogoutOpen] = useState(false)
 	const baseItemClass = 'flex items-center gap-3 rounded-md px-3 py-2 text-base text-gray-300 transition-colors duration-200 hover:bg-white/10 hover:text-white'
-	const activeItemClass = 'bg-[#aaaaaa] text-white font-semibold'
+	const activeItemClass = 'bg-[#315266]/80 text-white font-semibold'
 
 	const handleConfirmLogout = () => {
 		localStorage.removeItem('access_token')
@@ -25,21 +25,24 @@ function Sidebar() {
 	}
 
 	return (
-		<aside className="fixed left-4 top-4 bottom-4 z-50 w-64 rounded-md bg-[linear-gradient(160deg,#222625_0%,#1d2221_100%)] text-white shadow-lg">
-			<div className="flex h-full flex-col p-4">
-				<div className="border-b border-white/20 pb-4">
-					<div className="flex items-center justify-center gap-3">
-						<div className="text-gray-200">
-							<img src={logo} alt="Logo" className="h-8 w-8" />
-						</div>
-						<div>
-							<p className="text-xs font-bold tracking-[0.35em] text-[#d8ea46]">LAUNCHPAD</p>
-							<p className="text-xs font-bold tracking-[0.35em] text-[#d8ea46]">COWORKING</p>
-						</div>
+		<aside className="fixed top-1 bottom-20 z-50 w-64 rounded-md text-white">
+			{/* Header block (logo + name) */}
+			<div className="p-3 pb-1">
+				<div className="rounded-md bg-[#0b2a32] p-3 flex items-center gap-3">
+					<div className="text-gray-200">
+						<img src={logo} alt="Logo" className="h-10 w-10" />
+					</div>
+					<div>
+						<p className="text-lg font-semibold">Launchpad</p>
+						<p className="text-md -mt-2">Coworking</p>
 					</div>
 				</div>
+			</div>
 
-				<nav className="mt-4 flex flex-col gap-2">
+			{/* Nav block */}
+			<div className="p-3 pt-0 h-full">
+				<div className="h-full rounded-md bg-[#0b2a32] p-4 flex flex-col">
+					<nav className="flex flex-col gap-2">
 					<NavLink
 						to="/dashboard"
 						className={({ isActive }) => `${baseItemClass} ${isActive ? activeItemClass : ''}`}
@@ -63,26 +66,26 @@ function Sidebar() {
 						<ContactPageIcon fontSize="small" />
 						<span>Invoice Profile</span>
 					</NavLink>
-				</nav>
+					</nav>
 
-				<div className="mt-auto">
-					<button
-						type="button"
-						onClick={() => setIsLogoutOpen(true)}
-						className={`${baseItemClass} w-full`}
-					>
-						<LogoutIcon fontSize="small" />
-						<span>Logout</span>
-					</button>
+					<div className="mt-auto">
+						<button
+							type="button"
+							onClick={() => setIsLogoutOpen(true)}
+							className={`${baseItemClass} w-full cursor-pointer disabled:cursor-not-allowed `}
+						>
+							<LogoutIcon fontSize="small" />
+							<span>Logout</span>
+						</button>
+					</div>
 				</div>
 			</div>
-
 			<LogoutModal
 				isOpen={isLogoutOpen}
 				onClose={() => setIsLogoutOpen(false)}
 				onConfirm={handleConfirmLogout}
 			/>
-		</aside>
+ 		</aside>
 	)
 }
 

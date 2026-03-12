@@ -18,7 +18,7 @@ const venturesData = [45, 83, 78, 50, 112]
 const monthLabels = ['January', 'February', 'March', 'April', 'May']
 
 const pieData = [
-  { id: 0, value: 38, label: 'Virtual Office', color: '#4b4f5c' },
+  { id: 0, value: 38, label: 'Virtual Office', color: '#316e7e' },
   { id: 1, value: 27, label: 'Meeting Rooms', color: '#ccd83e' },
   { id: 2, value: 20, label: 'Walk-in', color: '#dce3b1' },
   { id: 3, value: 15, label: 'Others', color: '#a9c0a2' },
@@ -46,7 +46,7 @@ export const DashboardPage = () => {
               <Tooltip title="Export current table as CSV">
                 <button
                   type="button"
-                  className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-100/80 hover:border-slate-400 hover:text-slate-900"
+                  className="cursor-pointer disabled:cursor-not-allowed inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-100/80 hover:border-slate-400 hover:text-slate-900"
                 >
                   <FileUploadIcon fontSize="small" />
                   Export
@@ -61,7 +61,7 @@ export const DashboardPage = () => {
           <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[1fr_300px]">
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div className="rounded-md bg-[#4e525f] p-4 text-[#e8ec97] shadow-sm">
+                <div className="rounded-md bg-[#315266] p-4 text-[#e8ec97] shadow-sm">
                   <div className="flex items-center justify-between">
                     <p className="text-2xl font-semibold leading-tight">Total Sales</p>
                     <div className="rounded-md bg-white/15 p-2 text-xl text-white">
@@ -89,7 +89,7 @@ export const DashboardPage = () => {
                   </p>
                 </div>
 
-                <div className="rounded-md bg-[#14161a] p-4 text-[#d7e47a] shadow-sm">
+                <div className="rounded-md bg-[#0b2a32] p-4 text-[#d7e47a] shadow-sm">
                   <div className="flex items-center justify-between">
                     <p className="text-2xl font-semibold leading-tight">Total Receipts Acknowledged</p>
                     <div className="rounded-md bg-white/15 p-2 text-[#d7e47a]">
@@ -117,7 +117,7 @@ export const DashboardPage = () => {
                   height={260}
                   series={[
                     { data: monthlyData, label: 'Shirefolk Incorporation', color: '#cedf50', borderRadius: 8 },
-                    { data: venturesData, label: 'Shirefolk Ventures', color: '#252a2f', borderRadius: 8 },
+                    { data: venturesData, label: 'Shirefolk Ventures', color: '#0b2a32', borderRadius: 8 },
                   ]}
                   xAxis={[{ data: monthLabels, scaleType: 'band' }]}
                   margin={{ left: 50, right: 20, top: 20, bottom: 30 }}

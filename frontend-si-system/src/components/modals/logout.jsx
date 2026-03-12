@@ -1,12 +1,13 @@
 import React from 'react'
+import { createPortal } from 'react-dom'
 
 export const LogoutModal = ({ isOpen, onClose, onConfirm }) => {
   if (!isOpen) {
     return null
   }
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-2xl">
         <h3 className="text-lg font-semibold text-slate-900">Confirm Logout</h3>
         <p className="mt-2 text-sm text-slate-600">
@@ -30,6 +31,7 @@ export const LogoutModal = ({ isOpen, onClose, onConfirm }) => {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

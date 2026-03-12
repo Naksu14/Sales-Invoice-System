@@ -6,6 +6,11 @@ const api = axios.create({
   baseURL: API_URL,
 });
 
+import { setupInterceptors } from './sessionManager'
+
+// attach interceptor to this api instance
+setupInterceptors(api)
+
 const getAuthHeaders = () => {
   const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
   return token ? { Authorization: `Bearer ${token}` } : {};

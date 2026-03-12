@@ -6,6 +6,8 @@ import { SiUsersModule } from './modules/si-users/si-users.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { InvoiceNameModule } from './modules/invoice-name/invoice-name.module';
 import { SpreadsheetsModule } from './modules/spreadsheets/spreadsheets.module';
+import { SheetColumnModule } from './modules/sheet-column/sheet-column.module';
+import { SiRecordsModule } from './modules/si-records/si-records.module';
 
 @Module({
   imports: [
@@ -18,7 +20,9 @@ import { SpreadsheetsModule } from './modules/spreadsheets/spreadsheets.module';
     SiUsersModule,
     AuthModule,
     InvoiceNameModule,
-    SpreadsheetsModule
+    SpreadsheetsModule,
+    SheetColumnModule,
+    SiRecordsModule
   ],
 })
 export class AppModule {}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import CloseIcon from '@mui/icons-material/Close'
 import Button from '../ui/Button'
 import { createSpreadsheet, getSpreadsheets } from '../../services/spreadsheetsService'
@@ -69,8 +70,8 @@ export default function AddSpreadsheetModal({ isOpen, onClose, invoiceNameId, on
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">
       <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg text-left">
         <div className="mb-4 flex items-start justify-between">
           <div>
@@ -95,6 +96,7 @@ export default function AddSpreadsheetModal({ isOpen, onClose, invoiceNameId, on
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

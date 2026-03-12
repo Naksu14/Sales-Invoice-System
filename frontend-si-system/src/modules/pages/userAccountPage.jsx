@@ -164,7 +164,7 @@ export const UserAccountPage = () => {
                     type="button"
                     onClick={handleSaveProfile}
                     disabled={profileLoading}
-                    className="rounded-md bg-black px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-[#222625]"
+                    className="cursor-pointer disabled:cursor-not-allowed rounded-md bg-[#0b2a32] px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-[#222625]"
                   >
                     {profileLoading ? 'Saving...' : 'Save Changes'}
                   </button>
@@ -229,7 +229,7 @@ export const UserAccountPage = () => {
                     type="button"
                     onClick={handleUpdatePassword}
                     disabled={passwordLoading}
-                    className="rounded-md bg-black px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-[#222625]"
+                    className="cursor-pointer disabled:cursor-not-allowed rounded-md bg-[#0b2a32] px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-[#222625]"
                   >
                     {passwordLoading ? 'Updating...' : 'Update'}
                   </button>
