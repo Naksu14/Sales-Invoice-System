@@ -6,12 +6,14 @@ import { getColumns, deleteColumn } from '../../services/columnTableService'
 import { useQueryClient } from '@tanstack/react-query'
 import EditColumnModal from './EditColumnModal'
 import ConfirmModal from './ConfirmModal'
+import CreateColumnsModal from './CreateColumnsModal'
 
 export default function ManageColumnsModal({ isOpen, onClose, spreadsheetId, spreadsheetName }) {
   const [columns, setColumns] = useState([])
   const [loading, setLoading] = useState(false)
   const [selectedColumn, setSelectedColumn] = useState(null)
   const [isEditOpen, setIsEditOpen] = useState(false)
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [delOpen, setDelOpen] = useState(false)
   const [delTarget, setDelTarget] = useState(null)
   const queryClient = useQueryClient()
@@ -88,9 +90,21 @@ export default function ManageColumnsModal({ isOpen, onClose, spreadsheetId, spr
           )}
         </div>
 
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex justify-between">
+          <Button variant="primary" size="md" onClick={() => setIsCreateOpen(true)}>+ Add Column</Button>
           <Button variant="secondary" size="md" onClick={onClose}>Close</Button>
         </div>
+
+        <CreateColumnsModal
+          isOpen={isCreateOpen}
+          onClose={() => setIsCreateOpen(false)}
+          spreadsheetId={spreadsheetId}
+          onSuccess={async () => {
+            await fetchColumns()
+            setIsCreateOpen(false)
+            await queryClient.invalidateQueries({ queryKey: ['columns', spreadsheetId] })
+          }}
+        />
 
         <EditColumnModal
           isOpen={isEditOpen}

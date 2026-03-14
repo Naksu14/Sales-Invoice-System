@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 import CloseIcon from '@mui/icons-material/Close'
 import Button from '../ui/Button'
 import * as columnService from '../../services/columnTableService'
+import { useQueryClient } from '@tanstack/react-query'
+import { createSiRecord } from '../../services/siRecordsService'
 
 export default function GenerateRowModal({ isOpen, onClose, spreadsheetId, onSubmit, tableName }) {
   const [columns, setColumns] = useState([])
@@ -11,9 +13,16 @@ export default function GenerateRowModal({ isOpen, onClose, spreadsheetId, onSub
   const [error, setError] = useState('')
   const [mode, setMode] = useState('manual') // 'upload' | 'manual'
   const [file, setFile] = useState(null)
+  const queryClient = useQueryClient()
 
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen) {
+      setValues({})
+      setError('')
+      setFile(null)
+      setMode('manual')
+      return
+    }
     loadColumns()
   }, [isOpen, spreadsheetId])
 
@@ -44,19 +53,35 @@ export default function GenerateRowModal({ isOpen, onClose, spreadsheetId, onSub
 
   const handleSubmit = async () => {
     setError('')
-    // basic required validation
+
+    if (!spreadsheetId) {
+      setError('No spreadsheet selected')
+      return
+    }
+
+    // required field validation
     const missing = columns.filter(c => c.isRequired && !(values[c.dbFieldName || c.db_field_name || c.columnName] || '').toString().trim())
     if (missing.length > 0) {
       setError(`Please fill required fields: ${missing.map(m => m.columnName).join(', ')}`)
       return
     }
 
+    // build data JSON from dbFieldName keys with non-empty values only
+    const data = {}
+    columns.forEach(c => {
+      const key = c.dbFieldName || c.db_field_name || c.columnName
+      const val = (values[key] || '').toString().trim()
+      if (val !== '') data[key] = val
+    })
+
     try {
-      await onSubmit?.(values)
+      await createSiRecord({ sheetId: spreadsheetId, data })
+      queryClient.invalidateQueries({ queryKey: ['si-records', spreadsheetId] })
+      onSubmit?.(data)
       onClose()
     } catch (err) {
       console.error('submit failed', err)
-      setError(err?.message || 'Failed to submit')
+      setError(err?.message || err?.error || 'Failed to save invoice')
     }
   }
 
@@ -94,11 +119,28 @@ export default function GenerateRowModal({ isOpen, onClose, spreadsheetId, onSub
           </div>
 
           {mode === 'upload' && (
-            <div className="mt-3">
-              <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-slate-200 rounded-md cursor-pointer bg-white">
-                <input type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-                <div className="text-sm text-slate-600">Click to upload receipt (PNG, JPG, PDF)</div>
-                {file && <div className="text-xs text-slate-500 mt-2">Selected: {file.name}</div>}
+            <div className="mt-4">
+              <label className="flex flex-col items-center justify-center w-full h-52 md:h-64 border-2 border-dashed border-slate-300 rounded-2xl cursor-pointer bg-slate-50 hover:bg-slate-100 transition-colors px-6 text-center">
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg"
+                  className="hidden"
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                />
+
+                <div className="mb-3 text-slate-400" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-14 w-14" viewBox="0 0 24 24" fill="none">
+                    <path d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" stroke="currentColor" strokeWidth="1.6" />
+                    <path d="M7.5 15l2.5-3 2.5 2 2-2.5L17 15" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                    <circle cx="16.5" cy="8.5" r="1.5" fill="currentColor" />
+                    <circle cx="18" cy="17" r="4" fill="currentColor" opacity="0.2" />
+                    <path d="M18 15.8v2.4M16.8 17h2.4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                  </svg>
+                </div>
+
+                <div className="text-2xl font-semibold text-slate-900">Upload Receipt Image</div>
+                <div className="mt-2 text-base text-slate-500">Click to browse or drag and drop PNG, JPG up to 10MB</div>
+                {file && <div className="mt-4 text-sm font-medium text-slate-700">Selected: {file.name}</div>}
               </label>
             </div>
           )}

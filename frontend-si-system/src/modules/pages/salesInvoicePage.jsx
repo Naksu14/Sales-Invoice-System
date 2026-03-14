@@ -17,6 +17,7 @@ import { getSpreadsheets } from '../../services/spreadsheetsService'
 import { getColumns, deleteColumn } from '../../services/columnTableService'
 import EditColumnModal from '../../components/modals/EditColumnModal'
 import GenerateRowModal from '../../components/modals/GenerateRowModal'
+import { getSiRecordsBySheet } from '../../services/siRecordsService'
 
 export const SalesInvoicePage = () => {
   const queryClient = useQueryClient();
@@ -55,6 +56,12 @@ export const SalesInvoicePage = () => {
   const [colDeleteTarget, setColDeleteTarget] = useState(null)
   const [isManageColsOpen, setIsManageColsOpen] = useState(false)
   const [isGenerateRowOpen, setIsGenerateRowOpen] = useState(false)
+
+  const { data: siRecords = [] } = useQuery({
+    queryKey: ['si-records', activeSheetId],
+    queryFn: () => getSiRecordsBySheet(activeSheetId),
+    enabled: !!activeSheetId,
+  })
   
   return (
     <PageLayout>
@@ -133,28 +140,38 @@ export const SalesInvoicePage = () => {
                               </tr>
                             </thead>
                             <tbody>
-                              {/* Sample rows: render 6 empty rows matching columns */}
-                              {Array.from({ length: 1 }).map((_, rIdx) => (
-                                <tr key={rIdx} className="text-sm text-slate-600">
-                                  {columns.map((c) => (
-                                    <td key={c.id} className="border-b border-slate-200 px-4 py-4">&nbsp;data inside column</td>
-                                  ))}
-                                  <td className="border-b border-slate-200 px-4 py-4">
-                                    <div className="flex items-center gap-2 justify-end">
-                                      <Tooltip title="Edit">
-                                        <button className="rounded-md bg-slate-100 p-1.5 text-slate-600 hover:bg-slate-200" onClick={() => console.log('editRow', rIdx)}>
-                                          <EditIcon sx={{ fontSize: 18 }} />
-                                        </button>
-                                      </Tooltip>
-                                      <Tooltip title="Delete">
-                                        <button className="rounded-md bg-slate-100 p-1.5 text-rose-600 hover:bg-rose-50" onClick={() => console.log('deleteRow', rIdx)}>
-                                          <DeleteIcon sx={{ fontSize: 18 }} />
-                                        </button>
-                                      </Tooltip>
-                                    </div>
-                                  </td>
+                              {siRecords.length === 0 ? (
+                                <tr>
+                                  <td colSpan={columns.length + 1} className="px-4 py-8 text-center text-sm text-slate-400">No records yet. Click "Create Invoice" to add one.</td>
                                 </tr>
-                              ))}
+                              ) : (
+                                siRecords.map((record) => (
+                                  <tr key={record.id} className="text-sm text-slate-600">
+                                    {columns.map((c) => {
+                                      const key = c.dbFieldName || c.db_field_name || c.columnName
+                                      return (
+                                        <td key={c.id} className="border-b border-slate-200 px-4 py-4">
+                                          {record.data?.[key] ?? <span className="text-slate-300">—</span>}
+                                        </td>
+                                      )
+                                    })}
+                                    <td className="border-b border-slate-200 px-4 py-4">
+                                      <div className="flex items-center gap-2 justify-end">
+                                        <Tooltip title="Edit">
+                                          <button className="rounded-md bg-slate-100 p-1.5 text-slate-600 hover:bg-slate-200" onClick={() => console.log('editRow', record.id)}>
+                                            <EditIcon sx={{ fontSize: 18 }} />
+                                          </button>
+                                        </Tooltip>
+                                        <Tooltip title="Delete">
+                                          <button className="rounded-md bg-slate-100 p-1.5 text-rose-600 hover:bg-rose-50" onClick={() => console.log('deleteRow', record.id)}>
+                                            <DeleteIcon sx={{ fontSize: 18 }} />
+                                          </button>
+                                        </Tooltip>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
                             </tbody>
                           </table>
                         </div>
@@ -204,10 +221,8 @@ export const SalesInvoicePage = () => {
                 onClose={() => setIsGenerateRowOpen(false)}
                 spreadsheetId={activeSheetId}
                 tableName={activeSheet?.sheetTabName || 'this table'}
-                onSubmit={async (row) => {
-                  // TODO: persist row via API or apps script. For now log and invalidate.
-                  console.log('Generated row payload:', row)
-                  await queryClient.invalidateQueries({ queryKey: ['columns', activeSheetId] })
+                onSubmit={async () => {
+                  await queryClient.invalidateQueries({ queryKey: ['si-records', activeSheetId] })
                 }}
               />
               <ConfirmModal

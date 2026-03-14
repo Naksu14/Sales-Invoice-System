@@ -1,18 +1,26 @@
-// Apps Script: POST endpoint to append rows to a Google Spreadsheet
-// Replace SHEET_ID with your spreadsheet ID (from the URL)
-const SHEET_ID = "1q23JvckC2roRzABVJbJomUiX5SmDJSdq2Z9BtUdPLYU";
+// Apps Script: POST endpoint to append rows to a Google Spreadsheet.
+// Expected payload:
+// {
+//   spreadsheetId: "19Vr3KzG_w8MOr9qnCzOelMzLrLj_wphCOgs75ru21_Y",
+//   sheetTabName: "Sheet1",
+//   rowValues: ["143", "Daniela"]
+// }
 
 function doPost(e) {
   try {
     const payload = JSON.parse(e.postData.contents || "{}");
-    const name = payload.name || "";
-    const age = payload.age || "";
+    const spreadsheetId = payload.spreadsheetId || "";
+    const sheetTabName = payload.sheetTabName || "";
+    const rowValues = Array.isArray(payload.rowValues) ? payload.rowValues : [];
 
-    const ss = SpreadsheetApp.openById(SHEET_ID);
-    const sheet = ss.getSheets()[0];
+    if (!spreadsheetId) throw new Error("spreadsheetId is required");
+    if (!sheetTabName) throw new Error("sheetTabName is required");
 
-    // Append row: timestamp, name, age
-    sheet.appendRow([new Date(), name, age]);
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    const sheet = ss.getSheetByName(sheetTabName);
+    if (!sheet) throw new Error("Sheet tab not found: " + sheetTabName);
+
+    sheet.appendRow(rowValues);
 
     const output = { status: "ok", message: "Row appended" };
     return ContentService.createTextOutput(JSON.stringify(output)).setMimeType(

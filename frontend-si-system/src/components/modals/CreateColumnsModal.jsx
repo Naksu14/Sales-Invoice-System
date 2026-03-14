@@ -23,6 +23,10 @@ export default function CreateColumnsModal({ isOpen, onClose, spreadsheetId, onS
   const addRow = () => setRows(r => [...r, { columnName: '', dbFieldName: '', columnOrder: '', isRequired: false }])
   const removeRow = (idx) => setRows(r => r.filter((_, i) => i !== idx))
   const updateRow = (idx, key, value) => setRows(r => r.map((row, i) => i === idx ? { ...row, [key]: value } : row))
+  const toDbFieldName = (value = '') => value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_')
 
   const handleSubmit = async (e) => {
     e && e.preventDefault()
@@ -73,9 +77,36 @@ export default function CreateColumnsModal({ isOpen, onClose, spreadsheetId, onS
           <div className="space-y-2">
             {rows.map((row, idx) => (
               <div key={idx} className="grid grid-cols-12 gap-2 items-center">
-                <input className="col-span-4 rounded-md border px-3 py-2" placeholder="Column Name" value={row.columnName} onChange={(e) => updateRow(idx, 'columnName', e.target.value)} />
-                <input className="col-span-4 rounded-md border px-3 py-2" placeholder="DB Field Name" value={row.dbFieldName} onChange={(e) => updateRow(idx, 'dbFieldName', e.target.value)} />
-                <input className="col-span-2 rounded-md border px-3 py-2" type='number' placeholder="Order (optional)" value={row.columnOrder} onChange={(e) => updateRow(idx, 'columnOrder', e.target.value)} />
+                <input
+                  className="col-span-4 rounded-md border px-3 py-2"
+                  placeholder="Column Name"
+                  value={row.columnName}
+                  onChange={(e) => {
+                    const nextColumnName = e.target.value
+                    const previousSuggestedDbField = toDbFieldName(row.columnName)
+                    const nextSuggestedDbField = toDbFieldName(nextColumnName)
+
+                    updateRow(idx, 'columnName', nextColumnName)
+
+                    // Keep auto suggestion in sync unless the user already customized DB field name.
+                    if (!row.dbFieldName || row.dbFieldName === previousSuggestedDbField) {
+                      updateRow(idx, 'dbFieldName', nextSuggestedDbField)
+                    }
+                  }}
+                />
+                <input className="col-span-3 rounded-md border px-3 py-2 disabled:bg-slate-100" disabled placeholder="DB Field Name" value={row.dbFieldName} onChange={(e) => updateRow(idx, 'dbFieldName', e.target.value)} />
+                <input
+                  className="col-span-3 rounded-md border px-3 py-2"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={2}
+                  placeholder="Order (optional)"
+                  value={row.columnOrder}
+                  onChange={(e) => {
+                    const numericValue = e.target.value.replace(/\D/g, '').slice(0, 2)
+                    updateRow(idx, 'columnOrder', numericValue)
+                  }}
+                />
                 <label className="col-span-1 flex items-center gap-2">
                   <input type="checkbox" checked={row.isRequired} onChange={(e) => updateRow(idx, 'isRequired', e.target.checked)} />
                   <span className="text-sm">Required</span>
@@ -94,7 +125,9 @@ export default function CreateColumnsModal({ isOpen, onClose, spreadsheetId, onS
           {error && <div className="text-sm text-rose-600">{error}</div>}
 
           <div className="flex items-center justify-between">
-            <button type="button" onClick={addRow} className="text-sm text-slate-600 hover:underline">+ Add row</button>
+            <button type="button" onClick={addRow} className="text-sm text-slate-600 hover:bg-slate-200 p-2 rounded-md border border-slate-300">
+              + Add row
+            </button>
             <div className="flex gap-3">
               <Button variant="secondary" size="md" type="button" onClick={onClose}>Cancel</Button>
               <Button variant="primary" size="md" type="submit" disabled={loading}>{loading ? 'Saving...' : 'Create'}</Button>

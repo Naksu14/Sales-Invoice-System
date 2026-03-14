@@ -2,13 +2,13 @@ Apps Script Web App for appending rows to Google Sheets
 
 Overview
 
-- This Apps Script provides a simple POST endpoint that appends rows to the first sheet of a spreadsheet.
-- The script expects JSON with `{ name: string, age: string|number }`.
+- This Apps Script provides a simple POST endpoint that appends rows to a target Google Sheet tab.
+- The script expects JSON with `spreadsheetId`, `sheetTabName`, and `rowValues`.
 
 Setup & Deploy
 
 1. Open https://script.google.com and create a new project.
-2. Replace the default Code.gs content with the contents of `gsheet-webapp.gs` (update `SHEET_ID` if needed).
+2. Replace the default Code.gs content with the contents of `gsheet-webapp.gs`.
 3. Save the project.
 4. Click `Deploy` → `New deployment`.
    - Select **Web app**.
@@ -16,6 +16,7 @@ Setup & Deploy
    - **Execute as**: Me
    - **Who has access**: Anyone (or Anyone with the link) — choose this if you want the React app to POST directly from the browser.
 5. Click `Deploy` and authorize if prompted. Copy the **Web app URL**.
+6. In the backend environment, set `GOOGLE_SHEETS_WEBAPP_URL` to the deployed web app URL.
 
 Important notes
 
@@ -30,5 +31,5 @@ Testing
 ```bash
 curl -X POST $WEBAPP_URL \
   -H 'Content-Type: application/json' \
-  -d '{"name":"Alice","age":30}'
+  -d '{"spreadsheetId":"19Vr3KzG_w8MOr9qnCzOelMzLrLj_wphCOgs75ru21_Y","sheetTabName":"Sheet1","rowValues":["143","Daniela"]}'
 ```

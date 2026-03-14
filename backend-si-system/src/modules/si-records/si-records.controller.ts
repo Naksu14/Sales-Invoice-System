@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe } from '@nestjs/common';
 import { SiRecordsService } from './si-records.service';
 import { CreateSiRecordDto } from './dto/create-si-record.dto';
 import { UpdateSiRecordDto } from './dto/update-si-record.dto';
@@ -15,6 +15,11 @@ export class SiRecordsController {
   @Get()
   findAll() {
     return this.siRecordsService.findAll();
+  }
+
+  @Get('by-sheet/:sheetId')
+  findBySheet(@Param('sheetId', ParseIntPipe) sheetId: number) {
+    return this.siRecordsService.findBySheet(sheetId);
   }
 
   @Get(':id')
