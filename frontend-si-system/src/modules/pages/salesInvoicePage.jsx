@@ -2,6 +2,7 @@ import React from 'react'
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline'
 import { PageLayout } from '../../components/pageLayout'
+import FileUploadIcon from '@mui/icons-material/FileUpload'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getInvoiceNames } from '../../services/invoiceService'
 import { useState, useEffect } from 'react'
@@ -17,7 +18,8 @@ import { getSpreadsheets } from '../../services/spreadsheetsService'
 import { getColumns, deleteColumn } from '../../services/columnTableService'
 import EditColumnModal from '../../components/modals/EditColumnModal'
 import GenerateRowModal from '../../components/modals/GenerateRowModal'
-import { getSiRecordsBySheet } from '../../services/siRecordsService'
+import EditRecordModal from '../../components/modals/EditRecordModal'
+import { getSiRecordsBySheet, deleteSiRecord } from '../../services/siRecordsService'
 
 export const SalesInvoicePage = () => {
   const queryClient = useQueryClient();
@@ -56,16 +58,91 @@ export const SalesInvoicePage = () => {
   const [colDeleteTarget, setColDeleteTarget] = useState(null)
   const [isManageColsOpen, setIsManageColsOpen] = useState(false)
   const [isGenerateRowOpen, setIsGenerateRowOpen] = useState(false)
+  const [isEditRecordOpen, setIsEditRecordOpen] = useState(false)
+  const [editRecordTarget, setEditRecordTarget] = useState(null)
+  const [recordDeleteOpen, setRecordDeleteOpen] = useState(false)
+  const [recordDeleteTarget, setRecordDeleteTarget] = useState(null)
 
   const { data: siRecords = [] } = useQuery({
     queryKey: ['si-records', activeSheetId],
     queryFn: () => getSiRecordsBySheet(activeSheetId),
     enabled: !!activeSheetId,
   })
+
+  const [currentPage, setCurrentPage] = useState(1)
+  const [rowsPerPage, setRowsPerPage] = useState(10)
+  const [dateCreatedSortOrder, setDateCreatedSortOrder] = useState('desc')
+  const [searchTerm, setSearchTerm] = useState('')
+
+  const getCreatedTimestamp = (record) => {
+    const rawValue =
+      record.createdAt
+
+    const timestamp = rawValue ? new Date(rawValue).getTime() : 0
+    return Number.isNaN(timestamp) ? 0 : timestamp
+  }
+
+  const filteredRecords = siRecords.filter((record) => {
+    const q = searchTerm.trim().toLowerCase()
+    if (!q) return true
+
+    const valuesFromColumns = columns.map((c) => {
+      const key = c.dbFieldName || c.columnName
+      return record.data?.[key]
+    })
+
+    const searchableText = [
+      record.id,
+      record.createdAt,
+      ...valuesFromColumns,
+    ]
+      .filter((v) => v !== undefined && v !== null)
+      .join(' ')
+      .toLowerCase()
+
+    return searchableText.includes(q)
+  })
+
+  const sortedRecords = [...filteredRecords].sort((a, b) => {
+    const timeA = getCreatedTimestamp(a)
+    const timeB = getCreatedTimestamp(b)
+
+    if (timeA === timeB) {
+      return Number(a.id || 0) - Number(b.id || 0)
+    }
+
+    return dateCreatedSortOrder === 'asc' ? timeA - timeB : timeB - timeA
+  })
+
+  const totalPages = Math.max(1, Math.ceil(sortedRecords.length / rowsPerPage))
+  const paginatedRecords = sortedRecords.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage)
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [activeSheetId, activeInvoiceId])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [dateCreatedSortOrder])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm])
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
+
+  const handleRowsPerPageChange = (e) => {
+    setRowsPerPage(Number(e.target.value))
+    setCurrentPage(1)
+  }
   
   return (
     <PageLayout>
-      <div className="mx-auto space-y-6">
+      <div className="mx-auto space-y-3">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-slate-700">SALES INVOICE</h1>
             <p className="mt-1 text-lg text-slate-500">Manage and view all issued invoices, including client details, service descriptions, and payment information.</p>
@@ -109,15 +186,42 @@ export const SalesInvoicePage = () => {
                                   onClick={() => setActiveSheetId(sh.id)}
                                   className={`cursor-pointer disabled:cursor-not-allowed rounded-lg px-4 py-2 text-sm font-medium transition-all duration-150 ${activeSheetId === sh.id ? 'bg-[#ACBFA4] text-black shadow-sm' : 'text-slate-600 hover:bg-slate-200'}`}
                                 >
-                                  {sh.sheetTabName}
+                                  {sh.sheetTabName}<span className="ml-1 text-xs text-slate-600">{sh.id === activeSheetId ? ` (${siRecords.length})` : ''}</span>
                                 </button>
                               </Tooltip>
                             ))}
                         </div>
                       </div>
+
                       <div>
                         {activeSheetId && columns && columns.length > 0 && (
-                          <Button variant="primary" leftIcon={<AddCircleOutlineIcon fontSize="small" />} size="md" onClick={() => setIsGenerateRowOpen(true)}  tooltip="Create Invoice">Create Invoice</Button>
+                          <div className="hidden sm:inline-flex items-center gap-2 mr-2">
+                            <select
+                              value={dateCreatedSortOrder}
+                              onChange={(e) => setDateCreatedSortOrder(e.target.value)}
+                              className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                            >
+                              <option value="asc">Old Created</option>
+                              <option value="desc">New Created</option>
+                            </select>
+                            <input
+                              type="text"
+                              value={searchTerm}
+                              onChange={(e) => setSearchTerm(e.target.value)}
+                              placeholder="Search records..."
+                              className="w-56 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                            />
+                            <Button variant="primary" leftIcon={<AddCircleOutlineIcon fontSize="small" />} size="md" onClick={() => setIsGenerateRowOpen(true)}  tooltip="Create Invoice">Create Invoice</Button>
+                            <Tooltip title="Export current table as CSV">
+                              <button
+                                type="button"
+                                className="cursor-pointer disabled:cursor-not-allowed inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-100/80 hover:border-slate-400 hover:text-slate-900"
+                              >
+                                <FileUploadIcon fontSize="small" />
+                                Export
+                              </button>
+                          </Tooltip>
+                        </div>
                         )}
                       </div>
                     </div>
@@ -145,10 +249,10 @@ export const SalesInvoicePage = () => {
                                   <td colSpan={columns.length + 1} className="px-4 py-8 text-center text-sm text-slate-400">No records yet. Click "Create Invoice" to add one.</td>
                                 </tr>
                               ) : (
-                                siRecords.map((record) => (
+                                paginatedRecords.map((record) => (
                                   <tr key={record.id} className="text-sm text-slate-600">
                                     {columns.map((c) => {
-                                      const key = c.dbFieldName || c.db_field_name || c.columnName
+                                      const key = c.dbFieldName || c.columnName
                                       return (
                                         <td key={c.id} className="border-b border-slate-200 px-4 py-4">
                                           {record.data?.[key] ?? <span className="text-slate-300">—</span>}
@@ -158,12 +262,12 @@ export const SalesInvoicePage = () => {
                                     <td className="border-b border-slate-200 px-4 py-4">
                                       <div className="flex items-center gap-2 justify-end">
                                         <Tooltip title="Edit">
-                                          <button className="rounded-md bg-slate-100 p-1.5 text-slate-600 hover:bg-slate-200" onClick={() => console.log('editRow', record.id)}>
+                                          <button className="rounded-md bg-slate-100 p-1.5 text-slate-600 hover:bg-slate-200" onClick={() => { setEditRecordTarget(record); setIsEditRecordOpen(true) }}>
                                             <EditIcon sx={{ fontSize: 18 }} />
                                           </button>
                                         </Tooltip>
                                         <Tooltip title="Delete">
-                                          <button className="rounded-md bg-slate-100 p-1.5 text-rose-600 hover:bg-rose-50" onClick={() => console.log('deleteRow', record.id)}>
+                                          <button className="rounded-md bg-slate-100 p-1.5 text-rose-600 hover:bg-rose-50" onClick={() => { setRecordDeleteTarget(record); setRecordDeleteOpen(true) }}>
                                             <DeleteIcon sx={{ fontSize: 18 }} />
                                           </button>
                                         </Tooltip>
@@ -175,6 +279,42 @@ export const SalesInvoicePage = () => {
                             </tbody>
                           </table>
                         </div>
+                        {siRecords.length > 0 ? (
+                          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+                            <div className="inline-flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                                disabled={currentPage === 1}
+                                className="rounded-md border border-slate-300 px-3 py-1.5 transition disabled:cursor-not-allowed disabled:opacity-50 hover:bg-slate-100"
+                              >
+                                Previous
+                              </button>
+                              <span>{currentPage} of {totalPages}</span>
+                              <button
+                                type="button"
+                                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                                disabled={currentPage === totalPages}
+                                className="rounded-md border border-slate-300 px-3 py-1.5 transition disabled:cursor-not-allowed disabled:opacity-50 hover:bg-slate-100"
+                              >
+                                Next
+                              </button>
+                            </div>
+
+                            <div className="inline-flex items-center gap-2">
+                              <span>Show :</span>
+                              <select
+                                value={rowsPerPage}
+                                onChange={handleRowsPerPageChange}
+                                className="rounded-md border border-slate-300 bg-white px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                              >
+                                <option value={10}>10</option>
+                                <option value={25}>25</option>
+                                <option value={50}>50</option>
+                              </select>
+                            </div>
+                          </div>
+                        ) : null}
                       </div>
                     ) : (
                       <div className="border-t border-slate-200 pt-6 text-center text-slate-400">
@@ -224,6 +364,36 @@ export const SalesInvoicePage = () => {
                 onSubmit={async () => {
                   await queryClient.invalidateQueries({ queryKey: ['si-records', activeSheetId] })
                 }}
+              />
+              <EditRecordModal
+                isOpen={isEditRecordOpen}
+                onClose={() => { setIsEditRecordOpen(false); setEditRecordTarget(null) }}
+                record={editRecordTarget}
+                spreadsheetId={activeSheetId}
+                onSuccess={async () => {
+                  await queryClient.invalidateQueries({ queryKey: ['si-records', activeSheetId] })
+                  setIsEditRecordOpen(false)
+                  setEditRecordTarget(null)
+                }}
+              />
+              <ConfirmModal
+                isOpen={recordDeleteOpen}
+                title="Delete Record"
+                message="Are you sure you want to delete this record? This action cannot be undone."
+                onConfirm={async () => {
+                  try {
+                    await deleteSiRecord(recordDeleteTarget.id)
+                    await queryClient.invalidateQueries({ queryKey: ['si-records', activeSheetId] })
+                  } catch (err) {
+                    console.error('Failed to delete record', err)
+                  } finally {
+                    setRecordDeleteOpen(false)
+                    setRecordDeleteTarget(null)
+                  }
+                }}
+                onCancel={() => { setRecordDeleteOpen(false); setRecordDeleteTarget(null) }}
+                confirmText="Delete"
+                cancelText="Cancel"
               />
               <ConfirmModal
                 isOpen={colDeleteOpen}

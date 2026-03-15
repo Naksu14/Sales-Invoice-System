@@ -11,6 +11,7 @@ export default function GenerateRowModal({ isOpen, onClose, spreadsheetId, onSub
   const [loading, setLoading] = useState(false)
   const [values, setValues] = useState({})
   const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
   const [mode, setMode] = useState('manual') // 'upload' | 'manual'
   const [file, setFile] = useState(null)
   const queryClient = useQueryClient()
@@ -74,6 +75,7 @@ export default function GenerateRowModal({ isOpen, onClose, spreadsheetId, onSub
       if (val !== '') data[key] = val
     })
 
+    setSaving(true)
     try {
       await createSiRecord({ sheetId: spreadsheetId, data })
       queryClient.invalidateQueries({ queryKey: ['si-records', spreadsheetId] })
@@ -82,12 +84,20 @@ export default function GenerateRowModal({ isOpen, onClose, spreadsheetId, onSub
     } catch (err) {
       console.error('submit failed', err)
       setError(err?.message || err?.error || 'Failed to save invoice')
+    } finally {
+      setSaving(false)
     }
   }
+    const handleKeyDown = (e) => {
+      if (e.key === 'Enter' && !e.shiftKey && !saving) {
+        e.preventDefault()
+        handleSubmit()
+      }
+    }
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-2xl min-h-[40vh] rounded-lg bg-white p-6 shadow-lg text-left flex flex-col justify-between">
+      <div className="w-full max-w-2xl min-h-[40vh] rounded-lg bg-white p-6 shadow-lg text-left flex flex-col justify-between" onKeyDown={handleKeyDown}>
         <div className="mb-4 flex items-start justify-between">
           <div>
             <h3 className="text-lg font-semibold">Create New Invoice in {tableName}</h3>
@@ -173,7 +183,7 @@ export default function GenerateRowModal({ isOpen, onClose, spreadsheetId, onSub
 
         <div className="mt-4 flex justify-end">
           <Button variant="secondary" size="md" className="mr-3" onClick={onClose}>Cancel</Button>
-          <Button variant="primary" size="md" onClick={handleSubmit}>Save Invoice</Button>
+          <Button variant="primary" size="md" onClick={handleSubmit} disabled={saving}>{saving ? 'Saving...' : 'Save Invoice'}</Button>
         </div>
       </div>
     </div>,

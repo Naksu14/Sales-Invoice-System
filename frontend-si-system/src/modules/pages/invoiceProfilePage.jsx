@@ -69,11 +69,11 @@ export const InvoiceProfilePage = () => {
 
   return (
     <PageLayout>
-      <div className="mx-auto space-y-6">
+      <div className="mx-auto space-y-3">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight text-slate-700">INVOICE PROFILE</h1>
-              <p className="mt-1 text-lg text-slate-500">Manage and view all issued invoices, including client details, service descriptions, and payment information.</p>
+              <p className="mt-1 text-lg text-slate-500">Manage and view all invoices type, spreadsheet link and tab name</p>
             </div>
             <div>
               {invoiceNames && invoiceNames.length > 0 && (
