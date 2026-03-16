@@ -97,7 +97,7 @@ export default function GenerateRowModal({ isOpen, onClose, spreadsheetId, onSub
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-2xl min-h-[40vh] rounded-lg bg-white p-6 shadow-lg text-left flex flex-col justify-between" onKeyDown={handleKeyDown}>
+      <div className="w-full max-w-5xl min-h-[40vh] rounded-lg bg-white p-6 shadow-lg text-left flex flex-col justify-between" onKeyDown={handleKeyDown}>
         <div className="mb-4 flex items-start justify-between">
           <div>
             <h3 className="text-lg font-semibold">Create New Invoice in {tableName}</h3>
@@ -156,7 +156,7 @@ export default function GenerateRowModal({ isOpen, onClose, spreadsheetId, onSub
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {loading ? (
             <div className="col-span-2 text-sm text-slate-500">Loading columns...</div>
           ) : columns.length === 0 ? (
@@ -166,11 +166,11 @@ export default function GenerateRowModal({ isOpen, onClose, spreadsheetId, onSub
               const key = c.dbFieldName || c.db_field_name || c.columnName
               return (
                 <div key={c.id} className="flex flex-col">
-                  <label className="text-sm text-slate-700">{c.columnName}<span className="text-red-500">{c.isRequired ? ' *' : ''}</span></label>
+                  <label className="text-xl text-slate-700">{c.columnName}<span className="text-red-500">{c.isRequired ? ' *' : ''}</span></label>
                   <input
                     value={values[key] || ''}
                     onChange={(e) => handleChange(key, e.target.value)}
-                    className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none"
+                    className="w-full rounded-md border border-slate-200 px-3 py-2 text-xl outline-none"
                     placeholder={c.columnName}
                   />
                 </div>

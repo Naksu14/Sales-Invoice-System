@@ -3,11 +3,16 @@ import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline'
 import { PageLayout } from '../../components/pageLayout'
 import FileUploadIcon from '@mui/icons-material/FileUpload'
+import * as XLSX from 'xlsx'
+import { saveAs } from 'file-saver'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getInvoiceNames } from '../../services/invoiceService'
 import { useState, useEffect } from 'react'
 import Button from '../../components/ui/Button'
 import Tooltip from '@mui/material/Tooltip'
+import Menu from '@mui/material/Menu'
+import MenuItem from '@mui/material/MenuItem'
+import IconButton from '@mui/material/IconButton'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
 import AddSpreadsheetModal from '../../components/modals/AddSpreadsheetModal'
@@ -140,6 +145,50 @@ export const SalesInvoicePage = () => {
     setCurrentPage(1)
   }
   
+  const buildExportData = () => {
+    const headers = columns.map((c) => c.columnName)
+    const rows = siRecords.map((rec) => {
+      const obj = {}
+      columns.forEach((c) => {
+        const key = c.dbFieldName || c.columnName
+        obj[c.columnName] = rec.data?.[key] ?? ''
+      })
+      obj['Created At'] = rec.createdAt ?? ''
+      obj['ID'] = rec.id ?? ''
+      return obj
+    })
+
+    return { headers, rows }
+  }
+
+  const exportToExcel = () => {
+    if (!activeInvoiceId || !activeSheetId) return
+    const activeInvoice = invoiceNames.find((i) => i.id === activeInvoiceId) || {}
+    const { headers, rows } = buildExportData()
+
+    const ws = XLSX.utils.json_to_sheet(rows, { header: [...headers, 'Created At', 'ID'] })
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, activeSheet?.sheetTabName || 'Sheet1')
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+    saveAs(new Blob([wbout], { type: 'application/octet-stream' }), `${activeInvoice.name || 'Invoice'}.xlsx`)
+  }
+
+  const exportToCSV = () => {
+    if (!activeInvoiceId || !activeSheetId) return
+    const activeInvoice = invoiceNames.find((i) => i.id === activeInvoiceId) || {}
+    const { headers, rows } = buildExportData()
+
+    const ws = XLSX.utils.json_to_sheet(rows, { header: [...headers, 'Created At', 'ID'] })
+    const csv = XLSX.utils.sheet_to_csv(ws)
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    saveAs(blob, `${activeInvoice.name || 'Invoice'} - ${activeSheet?.sheetTabName || 'Sheet'}.csv`)
+  }
+
+  const [exportAnchorEl, setExportAnchorEl] = useState(null)
+  const openExport = Boolean(exportAnchorEl)
+  const handleExportClick = (e) => setExportAnchorEl(e.currentTarget)
+  const handleExportClose = () => setExportAnchorEl(null)
+  
   return (
     <PageLayout>
       <div className="mx-auto space-y-3">
@@ -212,15 +261,30 @@ export const SalesInvoicePage = () => {
                               className="w-56 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300"
                             />
                             <Button variant="primary" leftIcon={<AddCircleOutlineIcon fontSize="small" />} size="md" onClick={() => setIsGenerateRowOpen(true)}  tooltip="Create Invoice">Create Invoice</Button>
-                            <Tooltip title="Export current table as CSV">
-                              <button
-                                type="button"
-                                className="cursor-pointer disabled:cursor-not-allowed inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-100/80 hover:border-slate-400 hover:text-slate-900"
+                            <div>
+                              <Tooltip title="Export">
+                                <div className="inline-flex">
+                                  <button
+                                    type="button"
+                                    onClick={handleExportClick}
+                                    className="cursor-pointer disabled:cursor-not-allowed inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-100/80 hover:border-slate-400 hover:text-slate-900"
+                                  >
+                                    <FileUploadIcon fontSize="small" />
+                                    Export
+                                  </button>
+                                </div>
+                              </Tooltip>
+                              <Menu
+                                anchorEl={exportAnchorEl}
+                                open={openExport}
+                                onClose={handleExportClose}
+                                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
                               >
-                                <FileUploadIcon fontSize="small" />
-                                Export
-                              </button>
-                          </Tooltip>
+                                <MenuItem onClick={() => { exportToExcel(); handleExportClose(); }}>Export XLSX</MenuItem>
+                                <MenuItem onClick={() => { exportToCSV(); handleExportClose(); }}>Export CSV</MenuItem>
+                              </Menu>
+                            </div>
                         </div>
                         )}
                       </div>

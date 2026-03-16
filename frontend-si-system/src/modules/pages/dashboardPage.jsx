@@ -16,6 +16,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getInvoiceNames } from '../../services/invoiceService'
 import { getSpreadsheets } from '../../services/spreadsheetsService'
 import { getSiRecordsBySheet } from '../../services/siRecordsService'
+import { useNavigate } from 'react-router-dom'
 
 const monthlyData = [120, 68, 103, 106, 45]
 const venturesData = [45, 83, 78, 50, 112]
@@ -24,19 +25,34 @@ const monthLabels = ['January', 'February', 'March', 'April', 'May']
 const pieData = [
   { id: 0, value: 38, label: 'Virtual Office', color: '#316e7e' },
   { id: 1, value: 27, label: 'Meeting Rooms', color: '#ccd83e' },
-  { id: 2, value: 20, label: 'Walk-in', color: '#dce3b1' },
-  { id: 3, value: 15, label: 'Others', color: '#a9c0a2' },
+  { id: 2, value: 20, label: 'Walk-Ins', color: '#dce3b1' },
+  { id: 3, value: 15, label: 'Events', color: '#a9c0a2' },
+  { id: 4, value: 10, label: 'Monthly Membership', color: '#f59e0b' },
+  { id: 5, value: 8, label: 'Private Office', color: '#ef4444' },
+  { id: 6, value: 6, label: 'Add Ons', color: '#7c3aed' },
+  { id: 7, value: 4, label: 'Fixed Desk', color: '#06b6d4' },
 ]
 
 export const DashboardPage = () => {
   const { data: invoiceNames = [] } = useQuery({ queryKey: ['invoiceNames'], queryFn: getInvoiceNames })
   const { data: spreadsheets = [] } = useQuery({ queryKey: ['spreadsheets'], queryFn: getSpreadsheets })
 
+  const navigate = useNavigate()
+
   const [activeInvoiceId, setActiveInvoiceId] = useState(null)
   const [activeSheetId, setActiveSheetId] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [rowsPerPage, setRowsPerPage] = useState(10)
+  const [serviceChartData, setServiceChartData] = useState([])
+  const [serviceLoading, setServiceLoading] = useState(false)
+  const [siThisMonthCount, setSiThisMonthCount] = useState(0)
+  const [siTodayCount, setSiTodayCount] = useState(0)
+  const [siYesterdayCount, setSiYesterdayCount] = useState(0)
+  const [arTotalCount, setArTotalCount] = useState(0)
+  const [arTodayCount, setArTodayCount] = useState(0)
+  const [arYesterdayCount, setArYesterdayCount] = useState(0)
+
 
   useEffect(() => {
     if (!activeInvoiceId && invoiceNames.length > 0) {
@@ -61,6 +77,188 @@ export const DashboardPage = () => {
     }
   }, [activeSheetId, sheetsForActiveInvoice])
 
+  useEffect(() => {
+    let mounted = true
+    const loadSiArCounts = async () => {
+      if (!activeInvoiceId) {
+        if (mounted) {
+          setSiThisMonthCount(0)
+          setSiTodayCount(0)
+          setSiYesterdayCount(0)
+          setArTotalCount(0)
+          setArTodayCount(0)
+          setArYesterdayCount(0)
+        }
+        return
+      }
+
+      const sheets = spreadsheets.filter((s) => (s.invoiceName && s.invoiceName.id === activeInvoiceId) || s.invoiceNameId === activeInvoiceId || s.invoice_name_id === activeInvoiceId)
+      if (!sheets || sheets.length === 0) {
+        if (mounted) {
+          setSiThisMonthCount(0)
+          setSiTodayCount(0)
+          setSiYesterdayCount(0)
+          setArTotalCount(0)
+          setArTodayCount(0)
+          setArYesterdayCount(0)
+        }
+        return
+      }
+
+      const siSheets = sheets.filter(s => (s.sheetTabName || '').toString().toLowerCase() === 'si')
+      const arSheets = sheets.filter(s => (s.sheetTabName || '').toString().toLowerCase() === 'ar')
+
+      const fetchFor = async (sheetList) => {
+        const promises = sheetList.map(sh => getSiRecordsBySheet(sh.id).catch(() => []))
+        const results = await Promise.all(promises)
+        return results.flat()
+      }
+
+      try {
+        const [siRecordsAll, arRecordsAll] = await Promise.all([fetchFor(siSheets), fetchFor(arSheets)])
+
+        const now = new Date()
+        const todayY = now.getFullYear(), todayM = now.getMonth(), todayD = now.getDate()
+        const yesterday = new Date(now)
+        yesterday.setDate(now.getDate() - 1)
+        const yY = yesterday.getFullYear(), yM = yesterday.getMonth(), yD = yesterday.getDate()
+
+        // SI: count records in current month
+        const siThisMonth = siRecordsAll.filter(r => {
+          const d = new Date(r.createdAt || r.created_at || 0)
+          return d.getFullYear() === todayY && d.getMonth() === todayM
+        }).length
+
+        const siToday = siRecordsAll.filter(r => {
+          const d = new Date(r.createdAt || r.created_at || 0)
+          return d.getFullYear() === todayY && d.getMonth() === todayM && d.getDate() === todayD
+        }).length
+
+        const siYesterday = siRecordsAll.filter(r => {
+          const d = new Date(r.createdAt || r.created_at || 0)
+          return d.getFullYear() === yY && d.getMonth() === yM && d.getDate() === yD
+        }).length
+
+        // AR: total count and today/yesterday
+        const arTotal = arRecordsAll.length
+        const arToday = arRecordsAll.filter(r => {
+          const d = new Date(r.createdAt || r.created_at || 0)
+          return d.getFullYear() === todayY && d.getMonth() === todayM && d.getDate() === todayD
+        }).length
+        const arYesterday = arRecordsAll.filter(r => {
+          const d = new Date(r.createdAt || r.created_at || 0)
+          return d.getFullYear() === yY && d.getMonth() === yM && d.getDate() === yD
+        }).length
+
+        if (mounted) {
+          setSiThisMonthCount(siThisMonth)
+          setSiTodayCount(siToday)
+          setSiYesterdayCount(siYesterday)
+          setArTotalCount(arTotal)
+          setArTodayCount(arToday)
+          setArYesterdayCount(arYesterday)
+        }
+      } catch (err) {
+        if (mounted) {
+          setSiThisMonthCount(0)
+          setSiTodayCount(0)
+          setSiYesterdayCount(0)
+          setArTotalCount(0)
+          setArTodayCount(0)
+          setArYesterdayCount(0)
+        }
+      }
+    }
+
+    loadSiArCounts()
+    return () => { mounted = false }
+  }, [activeInvoiceId, spreadsheets])
+
+  useEffect(() => {
+    let mounted = true
+    const loadServiceTypes = async () => {
+      if (!activeInvoiceId) {
+        if (mounted) setServiceChartData([])
+        return
+      }
+
+      const sheets = spreadsheets.filter((s) => (s.invoiceName && s.invoiceName.id === activeInvoiceId) || s.invoiceNameId === activeInvoiceId || s.invoice_name_id === activeInvoiceId)
+      if (!sheets || sheets.length === 0) {
+        if (mounted) setServiceChartData([])
+        return
+      }
+
+      setServiceLoading(true)
+      try {
+        const promises = sheets.map((sh) => getSiRecordsBySheet(sh.id).catch(() => []))
+        const results = await Promise.all(promises)
+        const allRecords = results.flat()
+
+        const counts = {}
+        const unknowns = []
+        const inferred = []
+        // build a lowercase label map from static pieData for inference
+        const labelMap = {}
+        pieData.forEach((p) => { labelMap[p.label.toLowerCase()] = p.label })
+
+        // count ONLY explicit type_of_service fields; do NOT include inferred values in counts
+        allRecords.forEach((rec) => {
+          const data = rec?.data || {}
+          const svcRaw = data.type_of_service || data.typeOfService || data.service_type || data.serviceType || ''
+          const svc = svcRaw.toString().trim()
+
+          if (svc) {
+            counts[svc] = (counts[svc] || 0) + 1
+          } else {
+            // try to infer from description/invoice text for debugging, but don't count it
+            const desc = (data.description || data.desc || data.details || data.invoice || '').toString().toLowerCase()
+            let inferredValue = ''
+            for (const key of Object.keys(labelMap)) {
+              if (desc.includes(key)) {
+                inferredValue = labelMap[key]
+                break
+              }
+            }
+
+            if (inferredValue) {
+              inferred.push({ id: rec?.id, inferredValue, data })
+            } else {
+              unknowns.push({ id: rec?.id, data })
+            }
+          }
+        })
+
+        if (inferred.length > 0) {
+          console.groupCollapsed('Dashboard: Inferred service_type from description')
+          console.table(inferred)
+          console.groupEnd()
+        }
+
+        if (unknowns.length > 0) {
+          console.groupCollapsed('Dashboard: Unknown service_type records')
+          console.table(unknowns)
+          console.groupEnd()
+        }
+
+        console.log('Dashboard: explicit service counts', counts)
+
+        const colors = ['#316e7e', '#ccd83e', '#dce3b1', '#a9c0a2', '#f59e0b', '#ef4444', '#7c3aed', '#06b6d4']
+        const chartArr = Object.keys(counts).map((k, idx) => ({ id: idx, value: counts[k], label: k, color: colors[idx % colors.length] }))
+
+        // avoid unnecessary state updates that can cause re-renders
+        const same = JSON.stringify(chartArr) === JSON.stringify(serviceChartData)
+        if (mounted && !same) setServiceChartData(chartArr)
+      } catch (err) {
+        if (mounted) setServiceChartData([])
+      } finally {
+        if (mounted) setServiceLoading(false)
+      }
+    }
+
+    loadServiceTypes()
+    return () => { mounted = false }
+  }, [activeInvoiceId])
+
   const { data: siRecords = [] } = useQuery({
     queryKey: ['si-records', activeSheetId],
     queryFn: () => getSiRecordsBySheet(activeSheetId),
@@ -70,8 +268,10 @@ export const DashboardPage = () => {
   const toLocalDateTime = (value) => {
     if (!value) return '-'
     const d = new Date(value)
+
     if (Number.isNaN(d.getTime())) return '-'
     return d.toLocaleString()
+
   }
 
   const getInputUser = (record) => {
@@ -79,16 +279,19 @@ export const DashboardPage = () => {
     return (
       data.inputUser ||
       data.input_user ||
+
       data.createdBy ||
       data.created_by ||
       data.encoder ||
       data.user ||
       '-'
+
     )
   }
 
   const getPreview = (record) => {
     const data = record?.data || {}
+
     const values = Object.values(data).filter((v) => v !== undefined && v !== null && `${v}`.trim() !== '')
     if (values.length === 0) return '-'
     return values.slice(0, 2).join(' | ')
@@ -144,6 +347,17 @@ export const DashboardPage = () => {
               <p className="mt-1 text-lg text-slate-500">Financial overview and analytics</p>
             </div>
             <div className="flex items-center gap-3 px-4 py-3">
+              <select
+                value={activeInvoiceId || ''}
+                onChange={(e) => setActiveInvoiceId(e.target.value === '' ? null : Number(e.target.value))}
+                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-600"
+                aria-label="Filter by invoice name"
+              >
+                <option value="">All Invoices</option>
+                {invoiceNames.map((inv) => (
+                  <option key={inv.id} value={inv.id}>{inv.name}</option>
+                ))}
+              </select>
               <Tooltip title="Export current table as CSV">
                 <button
                   type="button"
@@ -153,7 +367,7 @@ export const DashboardPage = () => {
                   Export
                 </button>
               </Tooltip>
-              <Button leftIcon={<NoteAddIcon fontSize="small" />} tooltip="Create a new invoice">
+              <Button leftIcon={<NoteAddIcon fontSize="small" />} tooltip="Create a new invoice" onClick={() => navigate('/sales-invoice')}>
                 Create Invoice
               </Button>
             </div>
@@ -183,10 +397,16 @@ export const DashboardPage = () => {
                       <ReceiptLongIcon fontSize="small" />
                     </div>
                   </div>
-                  <p className="mt-4 text-5xl font-bold">58</p>
-                  <p className="mt-3 inline-flex items-center gap-1 text-xs text-slate-700">
-                    <TrendingUpIcon sx={{ fontSize: 14 }} />
-                    12% More than yesterday
+                  <p className="mt-4 text-5xl font-bold">{siThisMonthCount}</p>
+                  <p className="mt-3 text-sm text-slate-700">
+                    Today: <span className="font-semibold">{siTodayCount}</span>
+                    <span className="mx-2">·</span>
+                    {(() => {
+                      const diff = siTodayCount - siYesterdayCount
+                      if (diff > 0) return <span className="text-emerald-600">▲ {diff} vs yesterday</span>
+                      if (diff < 0) return <span className="text-rose-600">▼ {Math.abs(diff)} vs yesterday</span>
+                      return <span className="text-slate-600">No change vs yesterday</span>
+                    })()}
                   </p>
                 </div>
 
@@ -197,10 +417,16 @@ export const DashboardPage = () => {
                       <TaskAltIcon fontSize="small" />
                     </div>
                   </div>
-                  <p className="mt-4 text-5xl font-bold">22</p>
-                  <p className="mt-3 inline-flex items-center gap-1 text-xs text-slate-300">
-                    <TrendingUpIcon sx={{ fontSize: 14 }} />
-                    12% More than yesterday
+                  <p className="mt-4 text-5xl font-bold">{arTotalCount}</p>
+                  <p className="mt-3 text-sm text-slate-300">
+                    Today: <span className="font-semibold">{arTodayCount}</span>
+                    <span className="mx-2">·</span>
+                    {(() => {
+                      const diff = arTodayCount - arYesterdayCount
+                      if (diff > 0) return <span className="text-emerald-300">▲ {diff} vs yesterday</span>
+                      if (diff < 0) return <span className="text-rose-300">▼ {Math.abs(diff)} vs yesterday</span>
+                      return <span className="text-slate-300">No change vs yesterday</span>
+                    })()}
                   </p>
                 </div>
               </div>
@@ -351,7 +577,7 @@ export const DashboardPage = () => {
                   height={390}
                   series={[
                     {
-                      data: pieData,
+                      data: serviceChartData.length > 0 ? serviceChartData : pieData,
                       innerRadius: 40,
                       outerRadius: 70,
                       paddingAngle: 2,
@@ -363,7 +589,16 @@ export const DashboardPage = () => {
               </div>
 
               <div className="rounded-md border border-slate-300 px-2 py-1 text-center text-xs text-slate-600">
-                Shirefolk Ventures
+                <select
+                  value={activeInvoiceId || ''}
+                  onChange={(e) => setActiveInvoiceId(e.target.value === '' ? null : Number(e.target.value))}
+                  className="w-full bg-transparent border-0 text-xs text-slate-600 text-center outline-none"
+                >
+                  <option value="">All Invoices</option>
+                  {invoiceNames.map((inv) => (
+                    <option key={inv.id} value={inv.id}>{inv.name}</option>
+                  ))}
+                </select>
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-slate-600">
