@@ -443,20 +443,6 @@ export const DashboardPage = () => {
                     </div>
                   </div>
                   <p className="mt-4 text-5xl font-bold text-[#e7e98a]">{formatCurrency(totalSalesAmount)}</p>
-                  <p className="mt-3 inline-flex items-center gap-1 text-xs text-slate-200">
-                    {(() => {
-                      const diff = salesTodayAmount - salesYesterdayAmount
-                      if (diff > 0) return (<>
-                        <TrendingUpIcon sx={{ fontSize: 14 }} />
-                        <span className="text-emerald-300">▲ {formatCurrency(diff)} more than yesterday</span>
-                      </>)
-                      if (diff < 0) return (<>
-                        <TrendingDownIcon sx={{ fontSize: 14 }} />
-                        <span className="text-rose-300">▼ {formatCurrency(Math.abs(diff))} less than yesterday</span>
-                      </>)
-                      return <span className="text-slate-200">No change vs yesterday</span>
-                    })()}
-                  </p>
                 </div>
 
                 <div className="rounded-md bg-[#d5e25a] p-4 text-[#202320] shadow-sm">
@@ -474,13 +460,13 @@ export const DashboardPage = () => {
                       const diff = siTodayCount - siYesterdayCount
                       if (diff > 0) return (<>
                         
-                        <span className="text-emerald-600"><TrendingUpIcon sx={{ fontSize: 14 }} /> {diff} more than yesterday</span>
+                        <span className="text-emerald-400"><TrendingUpIcon sx={{ fontSize: 14 }} /> {diff} more than yesterday</span>
                       </>)
                       if (diff < 0) return (<>
                         
-                        <span className="text-rose-600"><TrendingDownIcon sx={{ fontSize: 14 }} /> {Math.abs(diff)} less than yesterday</span>
+                        <span className="text-rose-400"><TrendingDownIcon sx={{ fontSize: 14 }} /> {Math.abs(diff)} less than yesterday</span>
                       </>)
-                      return <span className="text-slate-600">No change vs yesterday</span>
+                      return <span className="text-slate-400">No change vs yesterday</span>
                     })()}
                   </p>
                 </div>
