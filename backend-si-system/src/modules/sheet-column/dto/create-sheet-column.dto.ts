@@ -1,4 +1,4 @@
-import { IsBoolean, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator'
+import { IsBoolean, IsIn, IsNotEmpty, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator'
 
 export class CreateSheetColumnDto {
 	@IsNumber()
@@ -14,6 +14,11 @@ export class CreateSheetColumnDto {
 	@IsNotEmpty()
 	@MaxLength(200)
 	dbFieldName: string
+
+	@IsString()
+	@IsOptional()
+	@IsIn(['text', 'number', 'date'])
+	dataType?: string
 
 	@IsNumber()
 	@IsOptional()

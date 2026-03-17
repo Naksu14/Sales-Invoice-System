@@ -17,6 +17,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getInvoiceNames } from '../../services/invoiceService'
 import { getSpreadsheets } from '../../services/spreadsheetsService'
 import { getSiRecordsBySheet } from '../../services/siRecordsService'
+import { getColumns } from '../../services/columnTableService'
 import { useNavigate } from 'react-router-dom'
 
 const monthlyData = [120, 68, 103, 106, 45]
@@ -35,6 +36,24 @@ const pieData = [
   { id: 7, value: 4, label: 'Fixed Desk', color: '#06b6d4' },
 ]
 
+const parseCurrencyAmount = (value) => {
+  if (value === null || value === undefined || value === '') return 0
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0
+
+  const normalized = String(value).replace(/[^\d.-]/g, '')
+  if (!normalized) return 0
+
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+const formatCurrency = (value) => new Intl.NumberFormat('en-PH', {
+  style: 'currency',
+  currency: 'PHP',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+}).format(value || 0)
+
 export const DashboardPage = () => {
   const { data: invoiceNames = EMPTY_ARRAY } = useQuery({ queryKey: ['invoiceNames'], queryFn: getInvoiceNames })
   const { data: spreadsheets = EMPTY_ARRAY } = useQuery({ queryKey: ['spreadsheets'], queryFn: getSpreadsheets })
@@ -48,6 +67,9 @@ export const DashboardPage = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [serviceChartData, setServiceChartData] = useState([])
   const [serviceLoading, setServiceLoading] = useState(false)
+  const [totalSalesAmount, setTotalSalesAmount] = useState(0)
+  const [salesTodayAmount, setSalesTodayAmount] = useState(0)
+  const [salesYesterdayAmount, setSalesYesterdayAmount] = useState(0)
   const [siThisMonthCount, setSiThisMonthCount] = useState(0)
   const [siTodayCount, setSiTodayCount] = useState(0)
   const [siYesterdayCount, setSiYesterdayCount] = useState(0)
@@ -81,6 +103,9 @@ export const DashboardPage = () => {
         : spreadsheets.filter((s) => (s.invoiceName && s.invoiceName.id === activeInvoiceId) || s.invoiceNameId === activeInvoiceId || s.invoice_name_id === activeInvoiceId)
       if (!sheets || sheets.length === 0) {
         if (mounted) {
+          setTotalSalesAmount(0)
+          setSalesTodayAmount(0)
+          setSalesYesterdayAmount(0)
           setSiThisMonthCount(0)
           setSiTodayCount(0)
           setSiYesterdayCount(0)
@@ -93,6 +118,35 @@ export const DashboardPage = () => {
 
       const siSheets = sheets.filter(s => (s.sheetTabName || '').toString().toLowerCase() === 'si')
       const arSheets = sheets.filter(s => (s.sheetTabName || '').toString().toLowerCase() === 'ar')
+
+      const getPreferredAmountKey = (sheet, columns) => {
+        const dbFieldNames = (columns || []).map((column) => (column.dbFieldName || column.db_field_name || '').toString().toLowerCase())
+        const sheetTabName = (sheet.sheetTabName || '').toString().toLowerCase()
+
+        if (sheetTabName === 'or' && dbFieldNames.includes('or_amount')) return 'or_amount'
+        if (sheetTabName === 'ar' && dbFieldNames.includes('ar_amount')) return 'ar_amount'
+        if (dbFieldNames.includes('or_amount')) return 'or_amount'
+        if (dbFieldNames.includes('ar_amount')) return 'ar_amount'
+        return null
+      }
+
+      const sumAmountsForDate = (records, amountKey, year, month, day) => records.reduce((sum, record) => {
+        const createdAt = new Date(record.createdAt || record.created_at || 0)
+        if (
+          createdAt.getFullYear() !== year ||
+          createdAt.getMonth() !== month ||
+          createdAt.getDate() !== day
+        ) {
+          return sum
+        }
+
+        return sum + parseCurrencyAmount(record?.data?.[amountKey])
+      }, 0)
+
+      const sumAllAmounts = (records, amountKey) => records.reduce(
+        (sum, record) => sum + parseCurrencyAmount(record?.data?.[amountKey]),
+        0,
+      )
 
       const fetchFor = async (sheetList) => {
         const promises = sheetList.map(sh => getSiRecordsBySheet(sh.id).catch(() => []))
@@ -108,6 +162,30 @@ export const DashboardPage = () => {
         const yesterday = new Date(now)
         yesterday.setDate(now.getDate() - 1)
         const yY = yesterday.getFullYear(), yM = yesterday.getMonth(), yD = yesterday.getDate()
+
+        const sheetSales = await Promise.all(
+          sheets.map(async (sheet) => {
+            const [columns, records] = await Promise.all([
+              getColumns(sheet.id).catch(() => []),
+              getSiRecordsBySheet(sheet.id).catch(() => []),
+            ])
+            const amountKey = getPreferredAmountKey(sheet, columns)
+
+            if (!amountKey) {
+              return { total: 0, today: 0, yesterday: 0 }
+            }
+
+            return {
+              total: sumAllAmounts(records, amountKey),
+              today: sumAmountsForDate(records, amountKey, todayY, todayM, todayD),
+              yesterday: sumAmountsForDate(records, amountKey, yY, yM, yD),
+            }
+          }),
+        )
+
+        const totalSales = sheetSales.reduce((sum, sheet) => sum + sheet.total, 0)
+        const totalSalesToday = sheetSales.reduce((sum, sheet) => sum + sheet.today, 0)
+        const totalSalesYesterday = sheetSales.reduce((sum, sheet) => sum + sheet.yesterday, 0)
 
         // SI: count records in current month
         const siThisMonth = siRecordsAll.filter(r => {
@@ -137,6 +215,9 @@ export const DashboardPage = () => {
         }).length
 
         if (mounted) {
+          setTotalSalesAmount(totalSales)
+          setSalesTodayAmount(totalSalesToday)
+          setSalesYesterdayAmount(totalSalesYesterday)
           setSiThisMonthCount(siThisMonth)
           setSiTodayCount(siToday)
           setSiYesterdayCount(siYesterday)
@@ -146,6 +227,9 @@ export const DashboardPage = () => {
         }
       } catch (err) {
         if (mounted) {
+          setTotalSalesAmount(0)
+          setSalesTodayAmount(0)
+          setSalesYesterdayAmount(0)
           setSiThisMonthCount(0)
           setSiTodayCount(0)
           setSiYesterdayCount(0)
@@ -358,17 +442,17 @@ export const DashboardPage = () => {
                       ₱
                     </div>
                   </div>
-                  <p className="mt-4 text-5xl font-bold text-[#e7e98a]">25,000</p>
+                  <p className="mt-4 text-5xl font-bold text-[#e7e98a]">{formatCurrency(totalSalesAmount)}</p>
                   <p className="mt-3 inline-flex items-center gap-1 text-xs text-slate-200">
                     {(() => {
-                      const diff = siTodayCount - siYesterdayCount
+                      const diff = salesTodayAmount - salesYesterdayAmount
                       if (diff > 0) return (<>
                         <TrendingUpIcon sx={{ fontSize: 14 }} />
-                        <span className="text-emerald-300">▲ {diff} more than yesterday</span>
+                        <span className="text-emerald-300">▲ {formatCurrency(diff)} more than yesterday</span>
                       </>)
                       if (diff < 0) return (<>
                         <TrendingDownIcon sx={{ fontSize: 14 }} />
-                        <span className="text-rose-300">▼ {Math.abs(diff)} less than yesterday</span>
+                        <span className="text-rose-300">▼ {formatCurrency(Math.abs(diff))} less than yesterday</span>
                       </>)
                       return <span className="text-slate-200">No change vs yesterday</span>
                     })()}

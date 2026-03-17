@@ -16,6 +16,9 @@ export class SheetColumn {
 	@Column({ name: 'db_field_name', type: 'varchar', length: 200 })
 	dbFieldName: string
 
+	@Column({ name: 'data_type', type: 'varchar', length: 20, default: 'text' })
+	dataType: string
+
 	@Column({ name: 'column_order', type: 'int' })
 	columnOrder: number
 

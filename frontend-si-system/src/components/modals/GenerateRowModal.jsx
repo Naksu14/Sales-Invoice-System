@@ -6,6 +6,21 @@ import * as columnService from '../../services/columnTableService'
 import { useQueryClient } from '@tanstack/react-query'
 import { createSiRecord } from '../../services/siRecordsService'
 
+const getColumnKey = (column) => column.dbFieldName || column.db_field_name || column.columnName
+const getColumnDataType = (column) => column.dataType || column.data_type || 'text'
+const getInputType = (column) => {
+  const dataType = getColumnDataType(column)
+  if (dataType === 'number') return 'number'
+  if (dataType === 'date') return 'date'
+  return 'text'
+}
+const normalizeValueForSubmit = (column, value) => {
+  if (value === '' || value === null || value === undefined) return undefined
+  const dataType = getColumnDataType(column)
+  if (dataType === 'number') return Number(value)
+  return value
+}
+
 export default function GenerateRowModal({ isOpen, onClose, spreadsheetId, onSubmit, tableName }) {
   const [columns, setColumns] = useState([])
   const [loading, setLoading] = useState(false)
@@ -38,7 +53,7 @@ export default function GenerateRowModal({ isOpen, onClose, spreadsheetId, onSub
       setColumns(cols || [])
       const initial = {}
       (cols || []).forEach(c => {
-        const key = c.dbFieldName || c.db_field_name || c.columnName
+        const key = getColumnKey(c)
         initial[key] = ''
       })
       setValues(initial)
@@ -61,7 +76,13 @@ export default function GenerateRowModal({ isOpen, onClose, spreadsheetId, onSub
     }
 
     // required field validation
-    const missing = columns.filter(c => c.isRequired && !(values[c.dbFieldName || c.db_field_name || c.columnName] || '').toString().trim())
+    const missing = columns.filter((c) => {
+      const key = getColumnKey(c)
+      const value = values[key]
+      if (!c.isRequired) return false
+      if (value === null || value === undefined) return true
+      return value.toString().trim() === ''
+    })
     if (missing.length > 0) {
       setError(`Please fill required fields: ${missing.map(m => m.columnName).join(', ')}`)
       return
@@ -70,9 +91,12 @@ export default function GenerateRowModal({ isOpen, onClose, spreadsheetId, onSub
     // build data JSON from dbFieldName keys with non-empty values only
     const data = {}
     columns.forEach(c => {
-      const key = c.dbFieldName || c.db_field_name || c.columnName
-      const val = (values[key] || '').toString().trim()
-      if (val !== '') data[key] = val
+      const key = getColumnKey(c)
+      const rawValue = values[key]
+      const trimmedValue = rawValue?.toString().trim() ?? ''
+      if (trimmedValue !== '') {
+        data[key] = normalizeValueForSubmit(c, rawValue)
+      }
     })
 
     setSaving(true)
@@ -163,11 +187,12 @@ export default function GenerateRowModal({ isOpen, onClose, spreadsheetId, onSub
             <div className="col-span-2 text-sm text-slate-500">No columns defined for this sheet.</div>
           ) : (
             columns.map(c => {
-              const key = c.dbFieldName || c.db_field_name || c.columnName
+              const key = getColumnKey(c)
               return (
                 <div key={c.id} className="flex flex-col">
                   <label className="text-lg text-slate-700">{c.columnName}<span className="text-red-500">{c.isRequired ? ' *' : ''}</span></label>
                   <input
+                    type={getInputType(c)}
                     value={values[key] || ''}
                     onChange={(e) => handleChange(key, e.target.value)}
                     className="w-full rounded-md border border-slate-200 px-3 py-2 text-lg outline-none"

@@ -5,9 +5,12 @@ import Button from '../ui/Button'
 import { updateColumn } from '../../services/columnTableService'
 import { useQueryClient } from '@tanstack/react-query'
 
+const DATA_TYPE_OPTIONS = ['text', 'number', 'date']
+
 export default function EditColumnModal({ isOpen, onClose, initialData = null, onSuccess, onError }) {
   const [columnName, setColumnName] = useState('')
   const [dbFieldName, setDbFieldName] = useState('')
+  const [dataType, setDataType] = useState('text')
   const [columnOrder, setColumnOrder] = useState('')
   const [isRequired, setIsRequired] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -19,6 +22,7 @@ export default function EditColumnModal({ isOpen, onClose, initialData = null, o
     setError('')
     setColumnName(initialData?.columnName || '')
     setDbFieldName(initialData?.dbFieldName || initialData?.db_field_name || '')
+    setDataType(initialData?.dataType || initialData?.data_type || 'text')
     setColumnOrder(initialData?.columnOrder ?? initialData?.column_order ?? '')
     setIsRequired(initialData?.isRequired ?? initialData?.is_required ?? false)
   }, [isOpen, initialData])
@@ -41,6 +45,7 @@ export default function EditColumnModal({ isOpen, onClose, initialData = null, o
       const payload = {
         columnName: columnName.trim(),
         dbFieldName: dbFieldName.trim(),
+        dataType,
         columnOrder: columnOrder === '' ? undefined : Number(columnOrder),
         isRequired: !!isRequired,
       }
@@ -114,6 +119,19 @@ export default function EditColumnModal({ isOpen, onClose, initialData = null, o
             className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none"
             placeholder="Order (number)"
           />
+
+          <label className="block text-sm text-slate-700">Data Type:</label>
+          <select
+            value={dataType}
+            onChange={(e) => setDataType(e.target.value)}
+            className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none bg-white"
+          >
+            {DATA_TYPE_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {option.charAt(0).toUpperCase() + option.slice(1)}
+              </option>
+            ))}
+          </select>
 
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={isRequired} onChange={(e) => setIsRequired(e.target.checked)} />

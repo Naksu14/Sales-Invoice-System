@@ -5,6 +5,9 @@ import Button from '../ui/Button'
 import { createColumn } from '../../services/columnTableService'
 import { useQueryClient } from '@tanstack/react-query'
 
+const DEFAULT_ROW = { columnName: '', dbFieldName: '', dataType: 'text', columnOrder: '', isRequired: false }
+const DATA_TYPE_OPTIONS = ['text', 'number', 'date']
+
 export default function CreateColumnsModal({ isOpen, onClose, spreadsheetId, onSuccess }) {
   const queryClient = useQueryClient()
   const [rows, setRows] = useState([])
@@ -13,14 +16,14 @@ export default function CreateColumnsModal({ isOpen, onClose, spreadsheetId, onS
 
   useEffect(() => {
     if (!isOpen) {
-      setRows([{ columnName: '', dbFieldName: '', columnOrder: '', isRequired: false }])
+      setRows([DEFAULT_ROW])
       setError('')
     }
   }, [isOpen])
 
   if (!isOpen) return null
 
-  const addRow = () => setRows(r => [...r, { columnName: '', dbFieldName: '', columnOrder: '', isRequired: false }])
+  const addRow = () => setRows(r => [...r, DEFAULT_ROW])
   const removeRow = (idx) => setRows(r => r.filter((_, i) => i !== idx))
   const updateRow = (idx, key, value) => setRows(r => r.map((row, i) => i === idx ? { ...row, [key]: value } : row))
   const toDbFieldName = (value = '') => value
@@ -35,13 +38,16 @@ export default function CreateColumnsModal({ isOpen, onClose, spreadsheetId, onS
 
     // validate rows
     for (const [i, row] of rows.entries()) {
-      if (!row.columnName || !row.dbFieldName) return setError(`Row ${i + 1}: columnName and dbFieldName are required`)
+      if (!row.columnName || !row.dbFieldName || !row.dataType) {
+        return setError(`Row ${i + 1}: columnName, dbFieldName, and dataType are required`)
+      }
     }
 
     const payload = rows.map(r => ({
       spreadsheetId,
       columnName: r.columnName.trim(),
       dbFieldName: r.dbFieldName.trim(),
+      dataType: r.dataType,
       columnOrder: r.columnOrder !== '' ? Number(r.columnOrder) : undefined,
       isRequired: !!r.isRequired,
     }))
@@ -78,7 +84,7 @@ export default function CreateColumnsModal({ isOpen, onClose, spreadsheetId, onS
             {rows.map((row, idx) => (
               <div key={idx} className="grid grid-cols-12 gap-2 items-center">
                 <input
-                  className="col-span-4 rounded-md border px-3 py-2"
+                  className="col-span-3 rounded-md border px-3 py-2"
                   placeholder="Column Name"
                   value={row.columnName}
                   onChange={(e) => {
@@ -95,8 +101,19 @@ export default function CreateColumnsModal({ isOpen, onClose, spreadsheetId, onS
                   }}
                 />
                 <input className="col-span-3 rounded-md border px-3 py-2 disabled:bg-slate-100" disabled placeholder="DB Field Name" value={row.dbFieldName} onChange={(e) => updateRow(idx, 'dbFieldName', e.target.value)} />
+                <select
+                  className="col-span-2 rounded-md border px-3 py-2 bg-white"
+                  value={row.dataType}
+                  onChange={(e) => updateRow(idx, 'dataType', e.target.value)}
+                >
+                  {DATA_TYPE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option.charAt(0).toUpperCase() + option.slice(1)}
+                    </option>
+                  ))}
+                </select>
                 <input
-                  className="col-span-3 rounded-md border px-3 py-2"
+                  className="col-span-2 rounded-md border px-3 py-2"
                   type="text"
                   inputMode="numeric"
                   maxLength={2}
