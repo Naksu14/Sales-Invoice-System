@@ -27,6 +27,50 @@ export const updateUserProfile = async (userId, updatedData) => {
   } 
 };
 
+export const getUsers = async () => {
+  try {
+    const response = await api.get('/si-users', {
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response ? error.response.data : error;
+  }
+};
+
+export const createUser = async (payload) => {
+  try {
+    const response = await api.post('/si-users', payload, {
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response ? error.response.data : error;
+  }
+};
+
+export const updateUser = async (userId, payload) => {
+  try {
+    const response = await api.patch(`/si-users/${userId}`, payload, {
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response ? error.response.data : error;
+  }
+};
+
+export const deleteUser = async (userId) => {
+  try {
+    const response = await api.delete(`/si-users/${userId}`, {
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response ? error.response.data : error;
+  }
+};
+
 export const getUserProfile = async (userId) => {
   try {
     const response = await api.get(`/si-users/${userId}`, {

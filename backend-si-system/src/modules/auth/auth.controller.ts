@@ -18,7 +18,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   getCurrentUser(@Request() req) {
-    return this.authService.getCurrentUser(req.user.sub);
+    return this.authService.getCurrentUser(req.user.user_id);
   }
 
   @Post('send-otp')

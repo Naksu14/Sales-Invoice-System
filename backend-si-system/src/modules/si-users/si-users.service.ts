@@ -32,28 +32,37 @@ export class SiUsersService {
       password: hashedPassword,
     });
 
-    return this.siUserRepository.save(newUser);
+    const savedUser = await this.siUserRepository.save(newUser);
+    return this.sanitizeUser(savedUser);
   }
   
 
-  findAll() {
-    return this.siUserRepository.find();
+  async findAll() {
+    const users = await this.siUserRepository.find();
+    return users.map((user) => this.sanitizeUser(user));
   }
 
-  findOne(id: number) {
-    return this.siUserRepository.findOne({ where: { user_id: id } });
+  async findOne(id: number) {
+    const user = await this.siUserRepository.findOne({ where: { user_id: id } });
+    return user ? this.sanitizeUser(user) : null;
   }
 
-  update(id: number, updateSiUserDto: UpdateSiUserDto) {
+  async update(id: number, updateSiUserDto: UpdateSiUserDto) {
     if (updateSiUserDto.password) {
       updateSiUserDto.password = bcrypt.hashSync(updateSiUserDto.password, 10);
     }
-    this.siUserRepository.update(id, updateSiUserDto);
-    return this.siUserRepository.findOne({ where: { user_id: id } });
+    await this.siUserRepository.update(id, updateSiUserDto);
+    const user = await this.siUserRepository.findOne({ where: { user_id: id } });
+    return user ? this.sanitizeUser(user) : null;
 
   }
 
   remove(id: number) {
     return this.siUserRepository.delete({ user_id: id });
+  }
+
+  private sanitizeUser(user: SiUser) {
+    const { password, ...safeUser } = user;
+    return safeUser;
   }
 }

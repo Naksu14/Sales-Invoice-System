@@ -25,6 +25,11 @@ export default function EditColumnModal({ isOpen, onClose, initialData = null, o
 
   if (!isOpen) return null
 
+  const toDbFieldName = (value = '') => value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_')
+
   const handleSave = async () => {
     setError('')
     if (!columnName.trim()) {
@@ -75,7 +80,18 @@ export default function EditColumnModal({ isOpen, onClose, initialData = null, o
           <input
             type="text"
             value={columnName}
-            onChange={(e) => setColumnName(e.target.value)}
+            onChange={(e) => {
+              const nextColumnName = e.target.value
+              const previousSuggestedDbField = toDbFieldName(columnName)
+              const nextSuggestedDbField = toDbFieldName(nextColumnName)
+
+              setColumnName(nextColumnName)
+
+              // Keep DB field in sync unless user has already customized it.
+              if (!dbFieldName || dbFieldName === previousSuggestedDbField) {
+                setDbFieldName(nextSuggestedDbField)
+              }
+            }}
             className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none"
             placeholder="Column display name"
           />
@@ -84,8 +100,9 @@ export default function EditColumnModal({ isOpen, onClose, initialData = null, o
           <input
             type="text"
             value={dbFieldName}
+            disabled
             onChange={(e) => setDbFieldName(e.target.value)}
-            className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none"
+            className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none disabled:bg-slate-100"
             placeholder="Database field name (optional)"
           />
 

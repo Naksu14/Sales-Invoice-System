@@ -4,13 +4,16 @@ import logo from '../assets/images/updateLogo.svg'
 import DashboardIcon from '@mui/icons-material/Dashboard'
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong'
 import ContactPageIcon from '@mui/icons-material/ContactPage'
+import MenuBookIcon from '@mui/icons-material/MenuBook'
 import LogoutIcon from '@mui/icons-material/Logout'
 import { LogoutModal } from './modals/logout'
+import { UserGuideModal } from './modals/userGuide'
 import { queryClient } from '../services/queryClient'
 
 function Sidebar() {
 	const navigate = useNavigate()
 	const [isLogoutOpen, setIsLogoutOpen] = useState(false)
+	const [isUserGuideOpen, setIsUserGuideOpen] = useState(false)
 	const baseItemClass = 'flex items-center gap-3 rounded-md px-3 py-2 text-base text-gray-300 transition-colors duration-200 hover:bg-white/10 hover:text-white'
 	const activeItemClass = 'bg-[#315266]/80 text-white font-semibold'
 
@@ -66,6 +69,21 @@ function Sidebar() {
 						<ContactPageIcon fontSize="small" />
 						<span>Invoice Profile</span>
 					</NavLink>
+					<NavLink
+						to="/user-management"
+						className={({ isActive }) => `${baseItemClass} ${isActive ? activeItemClass : ''}`}
+					>
+						<ContactPageIcon fontSize="small" />
+						<span>Users</span>
+					</NavLink>
+					<button
+						type="button"
+						onClick={() => setIsUserGuideOpen(true)}
+						className={`${baseItemClass} w-full cursor-pointer`}
+					>
+						<MenuBookIcon fontSize="small" />
+						<span>User Guide</span>
+					</button>
 					</nav>
 
 					<div className="mt-auto">
@@ -84,6 +102,10 @@ function Sidebar() {
 				isOpen={isLogoutOpen}
 				onClose={() => setIsLogoutOpen(false)}
 				onConfirm={handleConfirmLogout}
+			/>
+			<UserGuideModal
+				isOpen={isUserGuideOpen}
+				onClose={() => setIsUserGuideOpen(false)}
 			/>
  		</aside>
 	)

@@ -5,6 +5,7 @@ import PaidIcon from '@mui/icons-material/Paid'
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong'
 import TaskAltIcon from '@mui/icons-material/TaskAlt'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
+import TrendingDownIcon from '@mui/icons-material/TrendingDown'
 import SearchIcon from '@mui/icons-material/Search'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import { BarChart } from '@mui/x-charts/BarChart'
@@ -21,6 +22,7 @@ import { useNavigate } from 'react-router-dom'
 const monthlyData = [120, 68, 103, 106, 45]
 const venturesData = [45, 83, 78, 50, 112]
 const monthLabels = ['January', 'February', 'March', 'April', 'May']
+const EMPTY_ARRAY = []
 
 const pieData = [
   { id: 0, value: 38, label: 'Virtual Office', color: '#316e7e' },
@@ -34,8 +36,8 @@ const pieData = [
 ]
 
 export const DashboardPage = () => {
-  const { data: invoiceNames = [] } = useQuery({ queryKey: ['invoiceNames'], queryFn: getInvoiceNames })
-  const { data: spreadsheets = [] } = useQuery({ queryKey: ['spreadsheets'], queryFn: getSpreadsheets })
+  const { data: invoiceNames = EMPTY_ARRAY } = useQuery({ queryKey: ['invoiceNames'], queryFn: getInvoiceNames })
+  const { data: spreadsheets = EMPTY_ARRAY } = useQuery({ queryKey: ['spreadsheets'], queryFn: getSpreadsheets })
 
   const navigate = useNavigate()
 
@@ -52,16 +54,10 @@ export const DashboardPage = () => {
   const [arTotalCount, setArTotalCount] = useState(0)
   const [arTodayCount, setArTodayCount] = useState(0)
   const [arYesterdayCount, setArYesterdayCount] = useState(0)
-
-
-  useEffect(() => {
-    if (!activeInvoiceId && invoiceNames.length > 0) {
-      setActiveInvoiceId(invoiceNames[0].id)
-    }
-  }, [activeInvoiceId, invoiceNames])
-
   const sheetsForActiveInvoice = useMemo(
-    () => spreadsheets.filter((s) => (s.invoiceName && s.invoiceName.id === activeInvoiceId) || s.invoiceNameId === activeInvoiceId || s.invoice_name_id === activeInvoiceId),
+    () => (activeInvoiceId == null
+      ? spreadsheets
+      : spreadsheets.filter((s) => (s.invoiceName && s.invoiceName.id === activeInvoiceId) || s.invoiceNameId === activeInvoiceId || s.invoice_name_id === activeInvoiceId)),
     [activeInvoiceId, spreadsheets]
   )
 
@@ -80,19 +76,9 @@ export const DashboardPage = () => {
   useEffect(() => {
     let mounted = true
     const loadSiArCounts = async () => {
-      if (!activeInvoiceId) {
-        if (mounted) {
-          setSiThisMonthCount(0)
-          setSiTodayCount(0)
-          setSiYesterdayCount(0)
-          setArTotalCount(0)
-          setArTodayCount(0)
-          setArYesterdayCount(0)
-        }
-        return
-      }
-
-      const sheets = spreadsheets.filter((s) => (s.invoiceName && s.invoiceName.id === activeInvoiceId) || s.invoiceNameId === activeInvoiceId || s.invoice_name_id === activeInvoiceId)
+      const sheets = activeInvoiceId == null
+        ? spreadsheets
+        : spreadsheets.filter((s) => (s.invoiceName && s.invoiceName.id === activeInvoiceId) || s.invoiceNameId === activeInvoiceId || s.invoice_name_id === activeInvoiceId)
       if (!sheets || sheets.length === 0) {
         if (mounted) {
           setSiThisMonthCount(0)
@@ -177,14 +163,13 @@ export const DashboardPage = () => {
   useEffect(() => {
     let mounted = true
     const loadServiceTypes = async () => {
-      if (!activeInvoiceId) {
-        if (mounted) setServiceChartData([])
-        return
-      }
-
-      const sheets = spreadsheets.filter((s) => (s.invoiceName && s.invoiceName.id === activeInvoiceId) || s.invoiceNameId === activeInvoiceId || s.invoice_name_id === activeInvoiceId)
+      const sheets = activeInvoiceId == null
+        ? spreadsheets
+        : spreadsheets.filter((s) => (s.invoiceName && s.invoiceName.id === activeInvoiceId) || s.invoiceNameId === activeInvoiceId || s.invoice_name_id === activeInvoiceId)
       if (!sheets || sheets.length === 0) {
-        if (mounted) setServiceChartData([])
+        if (mounted) {
+          setServiceChartData((prev) => (prev.length === 0 ? prev : []))
+        }
         return
       }
 
@@ -228,26 +213,16 @@ export const DashboardPage = () => {
           }
         })
 
-        if (inferred.length > 0) {
-          console.groupCollapsed('Dashboard: Inferred service_type from description')
-          console.table(inferred)
-          console.groupEnd()
-        }
-
-        if (unknowns.length > 0) {
-          console.groupCollapsed('Dashboard: Unknown service_type records')
-          console.table(unknowns)
-          console.groupEnd()
-        }
-
-        console.log('Dashboard: explicit service counts', counts)
-
         const colors = ['#316e7e', '#ccd83e', '#dce3b1', '#a9c0a2', '#f59e0b', '#ef4444', '#7c3aed', '#06b6d4']
         const chartArr = Object.keys(counts).map((k, idx) => ({ id: idx, value: counts[k], label: k, color: colors[idx % colors.length] }))
 
         // avoid unnecessary state updates that can cause re-renders
-        const same = JSON.stringify(chartArr) === JSON.stringify(serviceChartData)
-        if (mounted && !same) setServiceChartData(chartArr)
+        if (mounted) {
+          setServiceChartData((prev) => {
+            const same = JSON.stringify(chartArr) === JSON.stringify(prev)
+            return same ? prev : chartArr
+          })
+        }
       } catch (err) {
         if (mounted) setServiceChartData([])
       } finally {
@@ -257,7 +232,7 @@ export const DashboardPage = () => {
 
     loadServiceTypes()
     return () => { mounted = false }
-  }, [activeInvoiceId])
+  }, [activeInvoiceId, spreadsheets])
 
   const { data: siRecords = [] } = useQuery({
     queryKey: ['si-records', activeSheetId],
@@ -385,8 +360,18 @@ export const DashboardPage = () => {
                   </div>
                   <p className="mt-4 text-5xl font-bold text-[#e7e98a]">25,000</p>
                   <p className="mt-3 inline-flex items-center gap-1 text-xs text-slate-200">
-                    <TrendingUpIcon sx={{ fontSize: 14 }} />
-                    12% More than yesterday
+                    {(() => {
+                      const diff = siTodayCount - siYesterdayCount
+                      if (diff > 0) return (<>
+                        <TrendingUpIcon sx={{ fontSize: 14 }} />
+                        <span className="text-emerald-300">▲ {diff} more than yesterday</span>
+                      </>)
+                      if (diff < 0) return (<>
+                        <TrendingDownIcon sx={{ fontSize: 14 }} />
+                        <span className="text-rose-300">▼ {Math.abs(diff)} less than yesterday</span>
+                      </>)
+                      return <span className="text-slate-200">No change vs yesterday</span>
+                    })()}
                   </p>
                 </div>
 
@@ -403,8 +388,14 @@ export const DashboardPage = () => {
                     <span className="mx-2">·</span>
                     {(() => {
                       const diff = siTodayCount - siYesterdayCount
-                      if (diff > 0) return <span className="text-emerald-600">▲ {diff} vs yesterday</span>
-                      if (diff < 0) return <span className="text-rose-600">▼ {Math.abs(diff)} vs yesterday</span>
+                      if (diff > 0) return (<>
+                        
+                        <span className="text-emerald-600"><TrendingUpIcon sx={{ fontSize: 14 }} /> {diff} more than yesterday</span>
+                      </>)
+                      if (diff < 0) return (<>
+                        
+                        <span className="text-rose-600"><TrendingDownIcon sx={{ fontSize: 14 }} /> {Math.abs(diff)} less than yesterday</span>
+                      </>)
                       return <span className="text-slate-600">No change vs yesterday</span>
                     })()}
                   </p>
@@ -423,8 +414,14 @@ export const DashboardPage = () => {
                     <span className="mx-2">·</span>
                     {(() => {
                       const diff = arTodayCount - arYesterdayCount
-                      if (diff > 0) return <span className="text-emerald-300">▲ {diff} vs yesterday</span>
-                      if (diff < 0) return <span className="text-rose-300">▼ {Math.abs(diff)} vs yesterday</span>
+                      if (diff > 0) return (<>
+                        
+                        <span className="text-emerald-300"><TrendingUpIcon sx={{ fontSize: 14 }} /> {diff} more than yesterday</span>
+                      </>)
+                      if (diff < 0) return (<>
+                        
+                        <span className="text-rose-300"><TrendingDownIcon sx={{ fontSize: 14 }} /> {Math.abs(diff)} less than yesterday</span>
+                      </>)
                       return <span className="text-slate-300">No change vs yesterday</span>
                     })()}
                   </p>
@@ -458,9 +455,10 @@ export const DashboardPage = () => {
                   <div className="flex items-center gap-2">
                     <select
                       value={activeInvoiceId || ''}
-                      onChange={(e) => setActiveInvoiceId(Number(e.target.value))}
+                      onChange={(e) => setActiveInvoiceId(e.target.value === '' ? null : Number(e.target.value))}
                       className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-600"
                     >
+                      <option value="">All Invoices</option>
                       {invoiceNames.length === 0 ? <option value="">No Invoice Names</option> : null}
                       {invoiceNames.map((inv) => (
                         <option key={inv.id} value={inv.id}>{inv.name}</option>

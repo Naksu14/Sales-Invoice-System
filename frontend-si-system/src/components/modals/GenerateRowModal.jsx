@@ -166,11 +166,11 @@ export default function GenerateRowModal({ isOpen, onClose, spreadsheetId, onSub
               const key = c.dbFieldName || c.db_field_name || c.columnName
               return (
                 <div key={c.id} className="flex flex-col">
-                  <label className="text-xl text-slate-700">{c.columnName}<span className="text-red-500">{c.isRequired ? ' *' : ''}</span></label>
+                  <label className="text-lg text-slate-700">{c.columnName}<span className="text-red-500">{c.isRequired ? ' *' : ''}</span></label>
                   <input
                     value={values[key] || ''}
                     onChange={(e) => handleChange(key, e.target.value)}
-                    className="w-full rounded-md border border-slate-200 px-3 py-2 text-xl outline-none"
+                    className="w-full rounded-md border border-slate-200 px-3 py-2 text-lg outline-none"
                     placeholder={c.columnName}
                   />
                 </div>

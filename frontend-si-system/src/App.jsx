@@ -7,6 +7,7 @@ import { DashboardPage } from './modules/pages/dashboardPage'
 import { SalesInvoicePage } from './modules/pages/salesInvoicePage'
 import { InvoiceProfilePage } from './modules/pages/invoiceProfilePage'
 import { UserAccountPage } from './modules/pages/userAccountPage'
+import { UserManagementPage } from './modules/pages/userManagementPage'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 
 const hasAuthToken = () => {
@@ -75,6 +76,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <UserAccountPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/user-management"
+            element={
+              <ProtectedRoute>
+                <UserManagementPage />
               </ProtectedRoute>
             }
           />
