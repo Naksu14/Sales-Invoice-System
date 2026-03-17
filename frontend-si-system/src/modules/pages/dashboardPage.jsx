@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import FileUploadIcon from '@mui/icons-material/FileUpload'
 import NoteAddIcon from '@mui/icons-material/NoteAdd'
 import PaidIcon from '@mui/icons-material/Paid'
@@ -76,6 +77,7 @@ export const DashboardPage = () => {
   const [arTotalCount, setArTotalCount] = useState(0)
   const [arTodayCount, setArTodayCount] = useState(0)
   const [arYesterdayCount, setArYesterdayCount] = useState(0)
+  const [viewRecordTarget, setViewRecordTarget] = useState(null)
   const sheetsForActiveInvoice = useMemo(
     () => (activeInvoiceId == null
       ? spreadsheets
@@ -397,6 +399,16 @@ export const DashboardPage = () => {
     setCurrentPage(1)
   }
 
+  const openViewRecordModal = (record) => {
+    setViewRecordTarget(record)
+  }
+
+  const closeViewRecordModal = () => {
+    setViewRecordTarget(null)
+  }
+
+  const viewRecordEntries = Object.entries(viewRecordTarget?.data || {})
+
   return (
     <PageLayout>
       <div className="space-y-3">
@@ -588,7 +600,7 @@ export const DashboardPage = () => {
                             <button
                               type="button"
                               className="rounded-md bg-slate-100 p-1.5 text-slate-600 hover:bg-slate-200"
-                              onClick={() => console.log('viewRecord', record.id)}
+                              onClick={() => openViewRecordModal(record)}
                             >
                               <VisibilityIcon sx={{ fontSize: 18 }} />
                             </button>
@@ -680,6 +692,59 @@ export const DashboardPage = () => {
             </div>
           </div>
       </div>
+
+      {viewRecordTarget
+        ? createPortal(
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4">
+              <div className="w-full max-w-3xl rounded-lg bg-white p-5 shadow-xl">
+                <div className="mb-4 flex items-start justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-800">Invoice Record Details</h3>
+                    <p className="text-sm text-slate-500">
+                      Record #{viewRecordTarget.id} • {toLocalDateTime(viewRecordTarget.createdAt || viewRecordTarget.created_at)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Close"
+                    className="rounded-md px-2 py-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                    onClick={closeViewRecordModal}
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {viewRecordEntries.length === 0 ? (
+                  <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500">No data fields in this record.</p>
+                ) : (
+                  <div className="max-h-[55vh] overflow-auto rounded-md border border-slate-200">
+                    <table className="w-full border-separate border-spacing-y-0 text-sm">
+                      <thead>
+                        <tr className="bg-slate-100 text-left text-slate-700">
+                          <th className="px-4 py-2">Field</th>
+                          <th className="px-4 py-2">Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {viewRecordEntries.map(([key, value]) => (
+                          <tr key={key} className="text-slate-700">
+                            <td className="border-t border-slate-200 px-4 py-2 font-medium">{key}</td>
+                            <td className="border-t border-slate-200 px-4 py-2 break-all">{value === null || value === undefined || value === '' ? '-' : String(value)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                <div className="mt-4 flex justify-end">
+                  <Button variant="secondary" size="md" onClick={closeViewRecordModal}>Close</Button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </PageLayout>
   )
 }
