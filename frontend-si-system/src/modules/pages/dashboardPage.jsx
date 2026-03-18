@@ -5,12 +5,16 @@ import NoteAddIcon from '@mui/icons-material/NoteAdd'
 import PaidIcon from '@mui/icons-material/Paid'
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong'
 import TaskAltIcon from '@mui/icons-material/TaskAlt'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import TrendingDownIcon from '@mui/icons-material/TrendingDown'
 import SearchIcon from '@mui/icons-material/Search'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import { BarChart } from '@mui/x-charts/BarChart'
 import { PieChart } from '@mui/x-charts/PieChart'
+import { Document, Page, StyleSheet, Text, View, pdf } from '@react-pdf/renderer'
+import * as XLSX from 'xlsx'
+import { saveAs } from 'file-saver'
 import { PageLayout } from '../../components/pageLayout'
 import Button from '../../components/ui/Button'
 import Tooltip from '@mui/material/Tooltip'
@@ -21,9 +25,6 @@ import { getSiRecordsBySheet } from '../../services/siRecordsService'
 import { getColumns } from '../../services/columnTableService'
 import { useNavigate } from 'react-router-dom'
 
-const monthlyData = [120, 68, 103, 106, 45]
-const venturesData = [45, 83, 78, 50, 112]
-const monthLabels = ['January', 'February', 'March', 'April', 'May']
 const EMPTY_ARRAY = []
 
 const pieData = [
@@ -55,6 +56,155 @@ const formatCurrency = (value) => new Intl.NumberFormat('en-PH', {
   maximumFractionDigits: 2,
 }).format(value || 0)
 
+const normalizeFieldName = (value) => value.toString().toLowerCase().replace(/[^a-z0-9]/g, '')
+
+const getDateFromRecord = (record, preferredDateKeys = []) => {
+  const data = record?.data || {}
+
+  for (const key of preferredDateKeys) {
+    const value = data?.[key]
+    if (value !== undefined && value !== null && `${value}`.trim() !== '') {
+      const date = new Date(value)
+      if (!Number.isNaN(date.getTime())) return date
+    }
+  }
+
+  const fallbackKeys = Object.keys(data).filter((key) => normalizeFieldName(key).includes('date'))
+  for (const key of fallbackKeys) {
+    const value = data?.[key]
+    if (value !== undefined && value !== null && `${value}`.trim() !== '') {
+      const date = new Date(value)
+      if (!Number.isNaN(date.getTime())) return date
+    }
+  }
+
+  const createdAt = new Date(record?.createdAt || record?.created_at || 0)
+  return Number.isNaN(createdAt.getTime()) ? null : createdAt
+}
+
+const getAmountFromRecord = (record, preferredAmountKeys = []) => {
+  const data = record?.data || {}
+
+  for (const key of preferredAmountKeys) {
+    if (Object.prototype.hasOwnProperty.call(data, key)) {
+      return parseCurrencyAmount(data[key])
+    }
+  }
+
+  const candidateEntries = Object.entries(data).filter(([key]) => {
+    const normalized = normalizeFieldName(key)
+    return normalized === 'oramount' || normalized === 'aramount'
+  })
+
+  if (candidateEntries.length > 0) {
+    return parseCurrencyAmount(candidateEntries[0][1])
+  }
+
+  return 0
+}
+
+const pdfStyles = StyleSheet.create({
+  page: {
+    padding: 24,
+    fontSize: 10,
+    color: '#0f172a',
+  },
+  title: {
+    fontSize: 16,
+    marginBottom: 6,
+    fontWeight: 700,
+  },
+  subtitle: {
+    marginBottom: 10,
+    color: '#475569',
+  },
+  section: {
+    marginBottom: 12,
+    border: '1 solid #e2e8f0',
+    borderRadius: 4,
+    padding: 8,
+  },
+  sectionTitle: {
+    fontSize: 11,
+    marginBottom: 6,
+    fontWeight: 700,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+    paddingVertical: 2,
+    borderBottom: '1 solid #f1f5f9',
+  },
+  label: {
+    color: '#334155',
+  },
+  value: {
+    color: '#0f172a',
+  },
+  note: {
+    marginTop: 10,
+    color: '#64748b',
+  },
+})
+
+const DashboardAnalyticsPdfDocument = ({
+  generatedAt,
+  summaryRows,
+  monthlyRows,
+  serviceRows,
+  recentRows,
+}) => (
+  <Document>
+    <Page size="A4" style={pdfStyles.page}>
+      <Text style={pdfStyles.title}>Dashboard Analytics Report</Text>
+      <Text style={pdfStyles.subtitle}>Generated: {generatedAt}</Text>
+
+      <View style={pdfStyles.section}>
+        <Text style={pdfStyles.sectionTitle}>Summary</Text>
+        {summaryRows.map((row) => (
+          <View style={pdfStyles.row} key={row.metric}>
+            <Text style={pdfStyles.label}>{row.metric}</Text>
+            <Text style={pdfStyles.value}>{row.value}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={pdfStyles.section}>
+        <Text style={pdfStyles.sectionTitle}>Monthly Revenue (by Invoice)</Text>
+        {monthlyRows.slice(0, 12).map((row) => (
+          <View style={pdfStyles.row} key={row.month}>
+            <Text style={pdfStyles.label}>{row.month}</Text>
+            <Text style={pdfStyles.value}>{row.totalRevenue}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={pdfStyles.section}>
+        <Text style={pdfStyles.sectionTitle}>Revenue by Service Type</Text>
+        {serviceRows.map((row) => (
+          <View style={pdfStyles.row} key={row.serviceType}>
+            <Text style={pdfStyles.label}>{row.serviceType}</Text>
+            <Text style={pdfStyles.value}>{row.count}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={pdfStyles.section}>
+        <Text style={pdfStyles.sectionTitle}>Recent Service Invoices (Top 10)</Text>
+        {recentRows.slice(0, 10).map((row) => (
+          <View style={pdfStyles.row} key={row.recordId}>
+            <Text style={pdfStyles.label}>#{row.recordId} - {row.inputUser}</Text>
+            <Text style={pdfStyles.value}>{row.dateCreated}</Text>
+          </View>
+        ))}
+      </View>
+
+      <Text style={pdfStyles.note}>This report summarizes the current dashboard filter selection.</Text>
+    </Page>
+  </Document>
+)
+
 export const DashboardPage = () => {
   const { data: invoiceNames = EMPTY_ARRAY } = useQuery({ queryKey: ['invoiceNames'], queryFn: getInvoiceNames })
   const { data: spreadsheets = EMPTY_ARRAY } = useQuery({ queryKey: ['spreadsheets'], queryFn: getSpreadsheets })
@@ -68,6 +218,8 @@ export const DashboardPage = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [serviceChartData, setServiceChartData] = useState([])
   const [serviceLoading, setServiceLoading] = useState(false)
+  const [revenueMonthLabels, setRevenueMonthLabels] = useState([])
+  const [revenueSeries, setRevenueSeries] = useState([])
   const [totalSalesAmount, setTotalSalesAmount] = useState(0)
   const [salesTodayAmount, setSalesTodayAmount] = useState(0)
   const [salesYesterdayAmount, setSalesYesterdayAmount] = useState(0)
@@ -78,6 +230,10 @@ export const DashboardPage = () => {
   const [arTodayCount, setArTodayCount] = useState(0)
   const [arYesterdayCount, setArYesterdayCount] = useState(0)
   const [viewRecordTarget, setViewRecordTarget] = useState(null)
+  const [isColumnGuideOpen, setIsColumnGuideOpen] = useState(false)
+  const [isExportingExcel, setIsExportingExcel] = useState(false)
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false)
   const sheetsForActiveInvoice = useMemo(
     () => (activeInvoiceId == null
       ? spreadsheets
@@ -320,6 +476,130 @@ export const DashboardPage = () => {
     return () => { mounted = false }
   }, [activeInvoiceId, spreadsheets])
 
+  useEffect(() => {
+    let mounted = true
+
+    const loadMonthlyRevenue = async () => {
+      const sheets = activeInvoiceId == null
+        ? spreadsheets
+        : spreadsheets.filter((s) => (s.invoiceName && s.invoiceName.id === activeInvoiceId) || s.invoiceNameId === activeInvoiceId || s.invoice_name_id === activeInvoiceId)
+
+      if (!sheets || sheets.length === 0) {
+        if (mounted) {
+          setRevenueMonthLabels([])
+          setRevenueSeries([])
+        }
+        return
+      }
+
+      try {
+        const allMonthKeys = new Set()
+        const invoiceMonthTotals = new Map()
+        const invoicePalette = ['#315266', '#cedf50', '#0b2a32', '#7a8a2a', '#4b7a86', '#93a83b', '#2f4f56', '#b7c94a']
+
+        const getInvoiceNameBySheet = (sheet) => {
+          if (sheet?.invoiceName?.name) return sheet.invoiceName.name
+          const directInvoiceId = sheet?.invoiceNameId ?? sheet?.invoice_name_id ?? sheet?.invoiceName?.id
+          const matched = invoiceNames.find((inv) => inv.id === directInvoiceId)
+          return matched?.name || 'Uncategorized Invoice'
+        }
+
+        await Promise.all(
+          sheets.map(async (sheet) => {
+            const [columns, records] = await Promise.all([
+              getColumns(sheet.id).catch(() => []),
+              getSiRecordsBySheet(sheet.id).catch(() => []),
+            ])
+
+            const invoiceName = getInvoiceNameBySheet(sheet)
+            if (!invoiceMonthTotals.has(invoiceName)) {
+              invoiceMonthTotals.set(invoiceName, new Map())
+            }
+            const invoiceMap = invoiceMonthTotals.get(invoiceName)
+
+            const dateColumn = (columns || []).find((col) => {
+              const dbField = normalizeFieldName(col.dbFieldName || col.db_field_name || '')
+              const sheetField = normalizeFieldName(col.sheetColumnName || col.sheet_column_name || col.sheetHeader || '')
+              return dbField === 'date' || sheetField === 'date'
+            })
+
+            const preferredDateKeys = [
+              dateColumn?.dbFieldName,
+              dateColumn?.db_field_name,
+              dateColumn?.sheetColumnName,
+              dateColumn?.sheet_column_name,
+              'date',
+            ].filter(Boolean)
+
+            const amountColumns = (columns || []).filter((col) => {
+              const dbField = normalizeFieldName(col.dbFieldName || col.db_field_name || '')
+              const sheetField = normalizeFieldName(col.sheetColumnName || col.sheet_column_name || col.sheetHeader || '')
+              return dbField === 'oramount' || dbField === 'aramount' || sheetField === 'oramount' || sheetField === 'aramount'
+            })
+
+            const preferredAmountKeys = [
+              ...amountColumns.flatMap((col) => [
+                col.dbFieldName,
+                col.db_field_name,
+                col.sheetColumnName,
+                col.sheet_column_name,
+              ]),
+              'or_amount',
+              'ar_amount',
+              'orAmount',
+              'arAmount',
+              'OR Amount',
+              'AR Amount',
+            ].filter(Boolean)
+
+            records.forEach((record) => {
+              const date = getDateFromRecord(record, preferredDateKeys)
+              if (!date) return
+
+              const amount = getAmountFromRecord(record, preferredAmountKeys)
+              const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+              allMonthKeys.add(monthKey)
+              invoiceMap.set(monthKey, (invoiceMap.get(monthKey) || 0) + amount)
+            })
+          }),
+        )
+
+        const sortedMonthKeys = [...allMonthKeys].sort((a, b) => {
+          const aDate = new Date(`${a}-01T00:00:00`)
+          const bDate = new Date(`${b}-01T00:00:00`)
+          return aDate.getTime() - bDate.getTime()
+        })
+
+        const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' })
+        const labels = sortedMonthKeys.map((key) => {
+          const [year, month] = key.split('-')
+          return monthFormatter.format(new Date(Number(year), Number(month) - 1, 1))
+        })
+
+        const series = [...invoiceMonthTotals.entries()].map(([invoiceName, monthTotals], idx) => ({
+          label: invoiceName,
+          data: sortedMonthKeys.map((monthKey) => Number((monthTotals.get(monthKey) || 0).toFixed(2))),
+          color: invoicePalette[idx % invoicePalette.length],
+          borderRadius: 8,
+          valueFormatter: (value) => formatCurrency(value),
+        }))
+
+        if (mounted) {
+          setRevenueMonthLabels(labels)
+          setRevenueSeries(series)
+        }
+      } catch (error) {
+        if (mounted) {
+          setRevenueMonthLabels([])
+          setRevenueSeries([])
+        }
+      }
+    }
+
+    loadMonthlyRevenue()
+    return () => { mounted = false }
+  }, [activeInvoiceId, spreadsheets, invoiceNames])
+
   const { data: siRecords = [] } = useQuery({
     queryKey: ['si-records', activeSheetId],
     queryFn: () => getSiRecordsBySheet(activeSheetId),
@@ -409,6 +689,136 @@ export const DashboardPage = () => {
 
   const viewRecordEntries = Object.entries(viewRecordTarget?.data || {})
 
+  const buildExportData = () => {
+    const summaryRows = [
+      { metric: 'Total Sales', rawValue: totalSalesAmount, value: formatCurrency(totalSalesAmount) },
+      { metric: 'Sales Today', rawValue: salesTodayAmount, value: formatCurrency(salesTodayAmount) },
+      { metric: 'Sales Yesterday', rawValue: salesYesterdayAmount, value: formatCurrency(salesYesterdayAmount) },
+      { metric: 'Receipts This Month', rawValue: siThisMonthCount, value: String(siThisMonthCount) },
+      { metric: 'Receipts Today', rawValue: siTodayCount, value: String(siTodayCount) },
+      { metric: 'Receipts Yesterday', rawValue: siYesterdayCount, value: String(siYesterdayCount) },
+      { metric: 'Acknowledged Receipts Total', rawValue: arTotalCount, value: String(arTotalCount) },
+      { metric: 'Acknowledged Receipts Today', rawValue: arTodayCount, value: String(arTodayCount) },
+      { metric: 'Acknowledged Receipts Yesterday', rawValue: arYesterdayCount, value: String(arYesterdayCount) },
+    ]
+
+    const monthlyRows = revenueMonthLabels.map((month, index) => {
+      const invoiceValues = revenueSeries.reduce((acc, series) => {
+        acc[series.label] = series.data[index] || 0
+        return acc
+      }, {})
+
+      const total = Object.values(invoiceValues).reduce((sum, value) => sum + Number(value || 0), 0)
+      return {
+        month,
+        ...invoiceValues,
+        totalRevenueRaw: Number(total.toFixed(2)),
+        totalRevenue: formatCurrency(total),
+      }
+    })
+
+    const serviceRows = (serviceChartData.length > 0 ? serviceChartData : pieData).map((item) => ({
+      serviceType: item.label,
+      count: Number(item.value || 0),
+    }))
+
+    const recentRows = recentRecords.map((record) => ({
+      recordId: record.id,
+      dateCreated: toLocalDateTime(record.createdAt || record.created_at),
+      inputUser: getInputUser(record),
+      tabName: record.spreadsheet?.sheetTabName || sheetsForActiveInvoice.find((s) => s.id === activeSheetId)?.sheetTabName || '-',
+      preview: getPreview(record),
+    }))
+
+    return { summaryRows, monthlyRows, serviceRows, recentRows }
+  }
+
+  const getExportTimestamp = () => {
+    const now = new Date()
+    const yyyy = now.getFullYear()
+    const mm = String(now.getMonth() + 1).padStart(2, '0')
+    const dd = String(now.getDate()).padStart(2, '0')
+    const hh = String(now.getHours()).padStart(2, '0')
+    const min = String(now.getMinutes()).padStart(2, '0')
+    return `${yyyy}${mm}${dd}-${hh}${min}`
+  }
+
+  const handleExportExcel = () => {
+    try {
+      setIsExportMenuOpen(false)
+      setIsExportingExcel(true)
+      const { summaryRows, monthlyRows, serviceRows, recentRows } = buildExportData()
+
+      const workbook = XLSX.utils.book_new()
+
+      const summarySheet = XLSX.utils.aoa_to_sheet([
+        ['Metric', 'Value'],
+        ...summaryRows.map((row) => [row.metric, row.rawValue]),
+      ])
+
+      const invoiceHeaders = revenueSeries.map((series) => series.label)
+      const monthlySheetRows = [
+        ['Month', ...invoiceHeaders, 'Total Revenue'],
+        ...monthlyRows.map((row) => [
+          row.month,
+          ...invoiceHeaders.map((header) => Number(row[header] || 0)),
+          row.totalRevenueRaw,
+        ]),
+      ]
+      const monthlySheet = XLSX.utils.aoa_to_sheet(monthlySheetRows)
+
+      const serviceSheet = XLSX.utils.aoa_to_sheet([
+        ['Service Type', 'Count'],
+        ...serviceRows.map((row) => [row.serviceType, row.count]),
+      ])
+
+      const recordsSheet = XLSX.utils.aoa_to_sheet([
+        ['Record ID', 'Date Created', 'Input User', 'Tab Name', 'Preview'],
+        ...recentRows.map((row) => [row.recordId, row.dateCreated, row.inputUser, row.tabName, row.preview]),
+      ])
+
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary')
+      XLSX.utils.book_append_sheet(workbook, monthlySheet, 'Monthly Revenue')
+      XLSX.utils.book_append_sheet(workbook, serviceSheet, 'Service Types')
+      XLSX.utils.book_append_sheet(workbook, recordsSheet, 'Recent Records')
+
+      const file = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
+      saveAs(
+        new Blob([file], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+        `dashboard-analytics-${getExportTimestamp()}.xlsx`,
+      )
+    } catch (error) {
+      console.error('Failed to export Excel analytics report', error)
+    } finally {
+      setIsExportingExcel(false)
+    }
+  }
+
+  const handleExportPdf = async () => {
+    try {
+      setIsExportMenuOpen(false)
+      setIsExportingPdf(true)
+      const { summaryRows, monthlyRows, serviceRows, recentRows } = buildExportData()
+      const generatedAt = new Date().toLocaleString()
+
+      const blob = await pdf(
+        <DashboardAnalyticsPdfDocument
+          generatedAt={generatedAt}
+          summaryRows={summaryRows}
+          monthlyRows={monthlyRows}
+          serviceRows={serviceRows}
+          recentRows={recentRows}
+        />,
+      ).toBlob()
+
+      saveAs(blob, `dashboard-analytics-${getExportTimestamp()}.pdf`)
+    } catch (error) {
+      console.error('Failed to export PDF analytics report', error)
+    } finally {
+      setIsExportingPdf(false)
+    }
+  }
+
   return (
     <PageLayout>
       <div className="space-y-3">
@@ -429,15 +839,39 @@ export const DashboardPage = () => {
                   <option key={inv.id} value={inv.id}>{inv.name}</option>
                 ))}
               </select>
-              <Tooltip title="Export current table as CSV">
-                <button
-                  type="button"
-                  className="cursor-pointer disabled:cursor-not-allowed inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-100/80 hover:border-slate-400 hover:text-slate-900"
-                >
-                  <FileUploadIcon fontSize="small" />
-                  Export
-                </button>
-              </Tooltip>
+              <div className="relative">
+                <Tooltip title="Export dashboard analytics">
+                  <button
+                    type="button"
+                    onClick={() => setIsExportMenuOpen((prev) => !prev)}
+                    disabled={isExportingExcel || isExportingPdf}
+                    className="cursor-pointer disabled:cursor-not-allowed inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-all duration-200 hover:bg-slate-100/80 hover:border-slate-400 hover:text-slate-900"
+                  >
+                    <FileUploadIcon fontSize="small" />
+                    {isExportingExcel ? 'Exporting Excel...' : isExportingPdf ? 'Exporting PDF...' : 'Export'}
+                    <ExpandMoreIcon sx={{ fontSize: 18 }} />
+                  </button>
+                </Tooltip>
+
+                {isExportMenuOpen ? (
+                  <div className="absolute right-0 z-20 mt-2 w-44 rounded-md border border-slate-200 bg-white py-1 shadow-lg">
+                    <button
+                      type="button"
+                      onClick={handleExportExcel}
+                      className="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+                    >
+                      Export as Excel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleExportPdf}
+                      className="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
+                    >
+                      Export as PDF
+                    </button>
+                  </div>
+                ) : null}
+              </div>
               <Button leftIcon={<NoteAddIcon fontSize="small" />} tooltip="Create a new invoice" onClick={() => navigate('/sales-invoice')}>
                 Create Invoice
               </Button>
@@ -513,19 +947,13 @@ export const DashboardPage = () => {
               <div className="rounded-md border border-slate-300 bg-white p-4 shadow-sm">
                 <div className="mb-3 flex items-center justify-between">
                   <h2 className="text-lg font-bold">REVENUE OVERVIEW</h2>
-                  <select className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-600">
-                    <option>Month</option>
-                    <option>Quarter</option>
-                  </select>
                 </div>
 
                 <BarChart
                   height={260}
-                  series={[
-                    { data: monthlyData, label: 'Shirefolk Incorporation', color: '#cedf50', borderRadius: 8 },
-                    { data: venturesData, label: 'Shirefolk Ventures', color: '#0b2a32', borderRadius: 8 },
-                  ]}
-                  xAxis={[{ data: monthLabels, scaleType: 'band' }]}
+                  series={revenueSeries}
+                  xAxis={[{ data: revenueMonthLabels, scaleType: 'band' }]}
+                  yAxis={[{ valueFormatter: (value) => formatCurrency(value) }]}
                   margin={{ left: 50, right: 20, top: 20, bottom: 30 }}
                   grid={{ horizontal: true }}
                 />
@@ -650,8 +1078,9 @@ export const DashboardPage = () => {
               </div>
             </div>
 
-            <div className="rounded-md border min-h-[300px] border-slate-300 bg-white p-6 shadow-sm">
-              <h2 className="text-center text-sm font-bold text-slate-600">REVENUE BY SERVICE TYPE</h2>
+            <div className="">
+              <div className="rounded-md border border-slate-300 bg-white p-4 shadow-sm">
+                <h2 className="text-center text-sm font-bold text-slate-600">REVENUE BY SERVICE TYPE</h2>
               <div className="mt-2 flex justify-center">
                 <PieChart
                   height={390}
@@ -689,9 +1118,68 @@ export const DashboardPage = () => {
                   </div>
                 ))}
               </div>
+                </div>
+              
+              <div className="mt-4 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setIsColumnGuideOpen(true)}
+                  className="inline-flex items-center gap-2 rounded-md border border-[#315266] bg-[#315266] p-4 text-xs font-semibold tracking-wide text-white shadow-sm transition hover:bg-[#243f4f]"
+                  aria-label="Open dashboard data setup guide"
+                  title="Open Dashboard Data Setup Guide"
+                >
+                  Open Dashboard Data Setup Guide
+                </button>
+              </div>
             </div>
           </div>
       </div>
+
+      {isColumnGuideOpen
+        ? createPortal(
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4">
+              <div className="w-full max-w-2xl rounded-lg bg-white p-5 shadow-xl">
+                <div className="mb-4 flex items-start justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-800">Dashboard Revenue Graph Column Guide</h3>
+                    <p className="mt-1 text-sm text-slate-500">Use these exact column names so monthly revenue analytics can compute correctly.</p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Close"
+                    className="rounded-md  text-lg px-2 py-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                    onClick={() => setIsColumnGuideOpen(false)}
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div className="space-y-3 text-sm text-slate-700">
+                  <p>
+                    Required fields for revenue chart processing:
+                  </p>
+                  <ul className="list-disc space-y-1 pl-5">
+                    <li><span className="font-semibold">date</span> (or a Date column mapped to the record data)</li>
+                    <li><span className="font-semibold">or_amount</span> and/or <span className="font-semibold">ar_amount</span></li>
+                    <li><span className="font-semibold">type_of_services</span> for service-type analytics</li>
+                  </ul>
+
+                  <p>
+                    The dashboard groups records by month-year from <span className="font-semibold">date</span> and sums values from <span className="font-semibold">or_amount</span> or <span className="font-semibold">ar_amount</span>.
+                  </p>
+                  <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
+                    Make sure column names are consistent across sheets to avoid missing or incorrect bargraph/piecharts totals.
+                  </p>
+                </div>
+
+                <div className="mt-4 flex justify-end">
+                  <Button variant="secondary" size="md" onClick={() => setIsColumnGuideOpen(false)}>Close</Button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
 
       {viewRecordTarget
         ? createPortal(

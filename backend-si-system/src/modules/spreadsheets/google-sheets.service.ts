@@ -71,7 +71,7 @@ export class GoogleSheetsService {
     const auth = new google.auth.OAuth2(
       this.getClientId(),
       this.getClientSecret(),
-      process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3001/spreadsheets',
+      process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3004/spreadsheets',
     );
     auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
     return google.sheets({ version: 'v4', auth });
