@@ -59,6 +59,20 @@ export class SiRecordsService {
     );
   }
 
+  private async buildOrderedRowValues(spreadsheetId: number, data: Record<string, unknown>) {
+    const columns = await this.sheetColumnRepository.find({
+      where: { spreadsheet: { id: spreadsheetId } },
+      order: { columnOrder: 'ASC' },
+    })
+
+    if (columns.length === 0) return [] as string[]
+
+    return columns.map((column) => {
+      const value = data?.[column.dbFieldName]
+      return value === undefined || value === null ? '' : String(value)
+    })
+  }
+
   findAll() {
     return this.siRecordRepository.find({ relations: ['spreadsheet'] });
   }
@@ -98,7 +112,54 @@ export class SiRecordsService {
     }
 
     await this.siRecordRepository.update(id, updatePayload);
-    return this.findOne(id);
+    const updatedRecord = await this.findOne(id);
+
+    // Keep DB as source of truth. Google Sheets sync is best-effort and should not block API success.
+    try {
+      const sourceSpreadsheet = existing.spreadsheet
+      const targetSpreadsheet = updatedRecord.spreadsheet
+
+      if (sourceSpreadsheet?.id !== targetSpreadsheet?.id) {
+        const rowValues = await this.buildOrderedRowValues(
+          targetSpreadsheet.id,
+          updatedRecord.data || {},
+        )
+
+        if (rowValues.length > 0) {
+          await this.googleSheetsService.appendRow(
+            targetSpreadsheet.spreadsheetUId,
+            targetSpreadsheet.sheetTabName,
+            rowValues,
+          )
+        }
+      } else if (updateSiRecordDto.data !== undefined) {
+        const oldRowValues = await this.buildOrderedRowValues(
+          sourceSpreadsheet.id,
+          existing.data || {},
+        )
+        const newRowValues = await this.buildOrderedRowValues(
+          sourceSpreadsheet.id,
+          updatedRecord.data || {},
+        )
+
+        if (oldRowValues.length > 0 && newRowValues.length > 0) {
+          const updated = await this.googleSheetsService.updateRowByMatch(
+            sourceSpreadsheet.spreadsheetUId,
+            sourceSpreadsheet.sheetTabName,
+            oldRowValues,
+            newRowValues,
+          )
+
+          if (!updated) {
+            console.warn(`[GoogleSheets] Could not find matching row to update for SI record ${id}`)
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[GoogleSheets] Failed to sync SI record update:', err.message)
+    }
+
+    return updatedRecord;
   }
   
   async remove(id: number) {

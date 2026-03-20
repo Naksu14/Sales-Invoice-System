@@ -2,8 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import Tooltip from '@mui/material/Tooltip'
 import { getCurrentUser } from '../services/authService'
 import { useNavigate } from 'react-router-dom'
+import MenuIcon from '@mui/icons-material/Menu'
 
-function Navbar() {
+function Navbar({ onToggleSidebar, isSidebarCollapsed = false }) {
 	const navigate = useNavigate()
 	
 	const { data: user } = useQuery({
@@ -15,10 +16,21 @@ function Navbar() {
 		navigate('/user-account')
 	}
 
+	const sidebarOffsetClass = isSidebarCollapsed ? 'lg:left-24' : 'lg:left-72'
+
 	return (
-		<aside className="fixed left-65 right-4 top-4 z-50 bg-white text-[#dce884] rounded-md shadow-sm">
+		<aside className={`fixed left-4 right-4 top-4 z-50 bg-white text-[#dce884] rounded-md shadow-sm transition-all duration-300 ${sidebarOffsetClass}`}>
 			<div className="w-full p-2">
-				<div className="flex items-center justify-end">
+				<div className="flex items-center">
+					<button
+						type="button"
+						onClick={onToggleSidebar}
+						className="inline-flex items-center justify-center rounded-md p-2 text-slate-600 hover:bg-slate-100 lg:hidden"
+						aria-label="Open sidebar"
+					>
+						<MenuIcon fontSize="small" />
+					</button>
+					<div className="ml-auto">
 								<Tooltip title="Open user account">
 									<div
 										onClick={NavigateUserAccount}
@@ -34,6 +46,7 @@ function Navbar() {
 						</div>
 									</div>
 								</Tooltip>
+					</div>
 				</div>
 			</div>
 		</aside>

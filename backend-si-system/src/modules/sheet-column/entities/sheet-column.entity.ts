@@ -19,6 +19,9 @@ export class SheetColumn {
 	@Column({ name: 'data_type', type: 'varchar', length: 20, default: 'text' })
 	dataType: string
 
+	@Column({ name: 'dropdown_options', type: 'text', nullable: true })
+	dropdownOptions?: string | null
+
 	@Column({ name: 'column_order', type: 'int' })
 	columnOrder: number
 

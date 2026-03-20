@@ -6,11 +6,13 @@ import { PageLayout } from '../../components/pageLayout'
 import Tooltip from '@mui/material/Tooltip'
 import { getCurrentUser, resetPassword } from '../../services/authService'
 import { updateUserProfile } from '../../services/userServices'
+import { SkeletonLoader } from '../../components/ui/SkeletonLoader'
+import { PageLoadingError } from '../../components/ui/PageLoadingError'
 
 export const UserAccountPage = () => {
   const queryClient = useQueryClient()
 
-  const { data: user } = useQuery({
+  const { data: user, isLoading: loadingUser, error: userError } = useQuery({
     queryKey: ['currentUser'],
     queryFn: () => getCurrentUser(),
   })
@@ -119,6 +121,18 @@ export const UserAccountPage = () => {
             <p className="mt-1 text-lg text-slate-500">Manage your account settings</p>
           </div>
 
+          {userError && (
+            <PageLoadingError 
+              error="Failed to load user profile. Please check your connection and try again."
+            />
+          )}
+
+          {loadingUser ? (
+            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-3 gap-4">
+              <SkeletonLoader type="card" count={1} />
+              <SkeletonLoader type="card" count={1} />
+            </div>
+          ) : (
           <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-1 lg:grid-cols-3 gap-4 ">
             <section className="rounded-md border border-slate-300 bg-white p-5 shadow-sm">
               <div className="mb-6 flex items-center gap-2 text-slate-600">
@@ -247,6 +261,7 @@ export const UserAccountPage = () => {
               )}
             </section>
           </div>
+          )}
       </div>
     </PageLayout>
   )

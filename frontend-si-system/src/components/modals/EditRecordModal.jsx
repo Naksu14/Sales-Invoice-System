@@ -8,14 +8,53 @@ import { updateSiRecord } from '../../services/siRecordsService'
 const getColumnKey = (column) => column.dbFieldName || column.db_field_name || column.columnName
 const getColumnDataType = (column) => column.dataType || column.data_type || 'text'
 const getInputType = (column) => {
-  const dataType = getColumnDataType(column)
+  const dataType = getColumnDataType(column).toLowerCase()
+  if (dataType === 'dropdown' || dataType === 'select') return 'dropdown'
   if (dataType === 'number') return 'number'
   if (dataType === 'date') return 'date'
   return 'text'
 }
+const getDropdownOptions = (column) => {
+  const raw =
+    column.dropdownOptions ||
+    column.dropdown_options ||
+    column.options ||
+    column.optionValues ||
+    column.option_values ||
+    []
+
+  if (Array.isArray(raw)) {
+    return raw
+      .map((item) => (item === null || item === undefined ? '' : String(item).trim()))
+      .filter(Boolean)
+  }
+
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim()
+    if (!trimmed) return []
+
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((item) => (item === null || item === undefined ? '' : String(item).trim()))
+          .filter(Boolean)
+      }
+    } catch {
+      // fallback to comma/newline parsing
+    }
+
+    return trimmed
+      .split(/\r?\n|,/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+  }
+
+  return []
+}
 const normalizeValueForSubmit = (column, value) => {
   if (value === '' || value === null || value === undefined) return undefined
-  const dataType = getColumnDataType(column)
+  const dataType = getColumnDataType(column).toLowerCase()
   if (dataType === 'number') return Number(value)
   return value
 }
@@ -126,19 +165,34 @@ export default function EditRecordModal({ isOpen, onClose, record, spreadsheetId
           ) : (
             columns.map((c) => {
               const key = getColumnKey(c)
+              const inputType = getInputType(c)
+              const dropdownOptions = inputType === 'dropdown' ? getDropdownOptions(c) : []
               return (
                 <div key={c.id} className="flex flex-col">
                   <label className="text-sm text-slate-700">
                     {c.columnName}
                     {c.isRequired && <span className="text-red-500"> *</span>}
                   </label>
-                  <input
-                    type={getInputType(c)}
-                    value={values[key] ?? ''}
-                    onChange={(e) => handleChange(key, e.target.value)}
-                    className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300"
-                    placeholder={c.columnName}
-                  />
+                  {inputType === 'dropdown' ? (
+                    <select
+                      value={values[key] ?? ''}
+                      onChange={(e) => handleChange(key, e.target.value)}
+                      className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300 bg-white"
+                    >
+                      <option value="">Select {c.columnName}</option>
+                      {dropdownOptions.map((option) => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type={inputType}
+                      value={values[key] ?? ''}
+                      onChange={(e) => handleChange(key, e.target.value)}
+                      className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300"
+                      placeholder={c.columnName}
+                    />
+                  )}
                 </div>
               )
             })

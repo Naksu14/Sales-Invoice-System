@@ -9,6 +9,7 @@ import step3Img1 from '../../assets/instruction images/step3 (1).png'
 import step3Img2 from '../../assets/instruction images/step3 (2).png'
 import step4Img1 from '../../assets/instruction images/step4 (1).png'
 import step4Img2 from '../../assets/instruction images/step4 (2).png'
+import step4Img3 from '../../assets/instruction images/step4 (3).png'
 import step5Img1 from '../../assets/instruction images/step5 (1).png'
 import step5Img2 from '../../assets/instruction images/step5 (2).png'
 
@@ -47,6 +48,7 @@ const guideTemplate = [
     screenshots: [
       { src: step4Img1, alt: 'Step 4 screenshot 1' },
       { src: step4Img2, alt: 'Step 4 screenshot 2' },
+      { src: step4Img3, alt: 'Step 4 screenshot 3' },
     ],
   },
   {

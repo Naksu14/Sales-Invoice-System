@@ -16,7 +16,7 @@ export class SheetColumnService {
   ) {}
 
   async create(createSheetColumnDto: CreateSheetColumnDto) {
-    const { spreadsheetId, columnName, dbFieldName, dataType, columnOrder, isRequired } = createSheetColumnDto
+    const { spreadsheetId, columnName, dbFieldName, dataType, dropdownOptions, columnOrder, isRequired } = createSheetColumnDto
 
     const spreadsheet = await this.spreadsheetRepo.findOne({ where: { id: spreadsheetId } })
     if (!spreadsheet) throw new NotFoundException('Spreadsheet not found')
@@ -42,6 +42,7 @@ export class SheetColumnService {
       columnName,
       dbFieldName,
       dataType: dataType ?? 'text',
+      dropdownOptions: dataType === 'dropdown' ? (dropdownOptions ?? null) : null,
       columnOrder: finalOrder,
       isRequired: !!isRequired,
     })
@@ -84,7 +85,7 @@ export class SheetColumnService {
       }
 
       for (const item of items) {
-        const { spreadsheetId, columnName, dbFieldName, dataType, columnOrder, isRequired } = item
+        const { spreadsheetId, columnName, dbFieldName, dataType, dropdownOptions, columnOrder, isRequired } = item
         const spreadsheet = spreadsheetMap.get(spreadsheetId)
         if (!spreadsheet) throw new NotFoundException(`Spreadsheet not found: ${spreadsheetId}`)
 
@@ -108,6 +109,7 @@ export class SheetColumnService {
           columnName,
           dbFieldName,
           dataType: dataType ?? 'text',
+          dropdownOptions: dataType === 'dropdown' ? (dropdownOptions ?? null) : null,
           columnOrder: finalOrder,
           isRequired: !!isRequired,
         })
@@ -173,6 +175,12 @@ export class SheetColumnService {
     if (updateSheetColumnDto.columnName !== undefined) sheetColumn.columnName = updateSheetColumnDto.columnName
     if (updateSheetColumnDto.dbFieldName !== undefined) sheetColumn.dbFieldName = updateSheetColumnDto.dbFieldName
     if (updateSheetColumnDto.dataType !== undefined) sheetColumn.dataType = updateSheetColumnDto.dataType
+    if (updateSheetColumnDto.dropdownOptions !== undefined) {
+      sheetColumn.dropdownOptions = updateSheetColumnDto.dropdownOptions || null
+    }
+    if (updateSheetColumnDto.dataType !== undefined && updateSheetColumnDto.dataType !== 'dropdown') {
+      sheetColumn.dropdownOptions = null
+    }
     if (updateSheetColumnDto.columnOrder !== undefined) sheetColumn.columnOrder = updateSheetColumnDto.columnOrder
     if (updateSheetColumnDto.isRequired !== undefined) sheetColumn.isRequired = updateSheetColumnDto.isRequired
 

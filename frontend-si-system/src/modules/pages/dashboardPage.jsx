@@ -19,6 +19,8 @@ import { PageLayout } from '../../components/pageLayout'
 import Button from '../../components/ui/Button'
 import Tooltip from '@mui/material/Tooltip'
 import { useQuery } from '@tanstack/react-query'
+import { SkeletonLoader } from '../../components/ui/SkeletonLoader'
+import { PageLoadingError } from '../../components/ui/PageLoadingError'
 import { getInvoiceNames } from '../../services/invoiceService'
 import { getSpreadsheets } from '../../services/spreadsheetsService'
 import { getSiRecordsBySheet } from '../../services/siRecordsService'
@@ -206,8 +208,8 @@ const DashboardAnalyticsPdfDocument = ({
 )
 
 export const DashboardPage = () => {
-  const { data: invoiceNames = EMPTY_ARRAY } = useQuery({ queryKey: ['invoiceNames'], queryFn: getInvoiceNames })
-  const { data: spreadsheets = EMPTY_ARRAY } = useQuery({ queryKey: ['spreadsheets'], queryFn: getSpreadsheets })
+  const { data: invoiceNames = EMPTY_ARRAY, isLoading: loadingInvoices, error: invoicesError } = useQuery({ queryKey: ['invoiceNames'], queryFn: getInvoiceNames })
+  const { data: spreadsheets = EMPTY_ARRAY, isLoading: loadingSheets, error: sheetsError } = useQuery({ queryKey: ['spreadsheets'], queryFn: getSpreadsheets })
 
   const navigate = useNavigate()
 
@@ -827,7 +829,10 @@ export const DashboardPage = () => {
               <h1 className="text-2xl font-semibold tracking-tight text-slate-700">DASHBOARD</h1>
               <p className="mt-1 text-lg text-slate-500">Financial overview and analytics</p>
             </div>
-            <div className="flex items-center gap-3 px-4 py-3">
+            {loadingInvoices || loadingSheets ? (
+              <div className="h-10 w-32 bg-slate-200 rounded-md animate-pulse" />
+            ) : (
+              <div className="flex items-center gap-3 px-4 py-3">
               <select
                 value={activeInvoiceId || ''}
                 onChange={(e) => setActiveInvoiceId(e.target.value === '' ? null : Number(e.target.value))}
@@ -876,8 +881,20 @@ export const DashboardPage = () => {
                 Create Invoice
               </Button>
             </div>
+          )}
           </div>
 
+          {(invoicesError || sheetsError) && (
+            <PageLoadingError 
+              error="Failed to load dashboard data. Please check your connection and try again."
+            />
+          )}
+
+          {loadingInvoices || loadingSheets ? (
+            <div className="space-y-4">
+              <SkeletonLoader type="grid" count={3} />
+            </div>
+          ) : (
           <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[1fr_300px]">
             <div className="space-y-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -1080,7 +1097,7 @@ export const DashboardPage = () => {
 
             <div className="">
               <div className="rounded-md border border-slate-300 bg-white p-4 shadow-sm">
-                <h2 className="text-center text-sm font-bold text-slate-600">REVENUE BY SERVICE TYPE</h2>
+                <h2 className="text-center text-sm font-bold text-slate-600 uppercase">Most Availed Services</h2>
               <div className="mt-2 flex justify-center">
                 <PieChart
                   height={390}
@@ -1133,7 +1150,7 @@ export const DashboardPage = () => {
               </div>
             </div>
           </div>
-      </div>
+          )}
 
       {isColumnGuideOpen
         ? createPortal(
@@ -1162,10 +1179,14 @@ export const DashboardPage = () => {
                     <li><span className="font-semibold">date</span> (or a Date column mapped to the record data)</li>
                     <li><span className="font-semibold">or_amount</span> and/or <span className="font-semibold">ar_amount</span></li>
                     <li><span className="font-semibold">type_of_services</span> for service-type analytics</li>
+                    <li><span className="font-semibold">status</span> (recommended values: <span className="font-semibold">Active</span>, <span className="font-semibold">Paid</span>, <span className="font-semibold">Unpaid</span>, <span className="font-semibold">Cancelled</span>)</li>
                   </ul>
 
                   <p>
                     The dashboard groups records by month-year from <span className="font-semibold">date</span> and sums values from <span className="font-semibold">or_amount</span> or <span className="font-semibold">ar_amount</span>.
+                  </p>
+                  <p>
+                    Keep <span className="font-semibold">status</span> consistent to support cancelled-transaction reporting and filtering.
                   </p>
                   <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
                     Make sure column names are consistent across sheets to avoid missing or incorrect bargraph/piecharts totals.
@@ -1233,6 +1254,7 @@ export const DashboardPage = () => {
             document.body,
           )
         : null}
+      </div>
     </PageLayout>
   )
 }

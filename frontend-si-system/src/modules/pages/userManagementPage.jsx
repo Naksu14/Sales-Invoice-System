@@ -4,6 +4,8 @@ import { PageLayout } from '../../components/pageLayout'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import { getCurrentUser } from '../../services/authService'
 import { createUser, deleteUser, getUsers, updateUser } from '../../services/userServices'
+import { SkeletonLoader } from '../../components/ui/SkeletonLoader'
+import { PageLoadingError } from '../../components/ui/PageLoadingError'
 
 const INITIAL_FORM = {
   full_name: '',
@@ -191,6 +193,7 @@ export const UserManagementPage = () => {
             <p className="mt-1 text-lg text-slate-500">Create, update, and delete user accounts</p>
           </div>
 
+          {!loadingCurrentUser && !loadingUsers && (
           <button
             type="button"
             onClick={openCreateForm}
@@ -198,8 +201,18 @@ export const UserManagementPage = () => {
           >
             Create Account
           </button>
+          )}
         </div>
 
+        {usersError && (
+          <PageLoadingError 
+            error="Failed to load users. Please check your connection and try again."
+          />
+        )}
+
+        {loadingCurrentUser || loadingUsers ? (
+          <SkeletonLoader type="table" count={5} />
+        ) : (
         <div className="rounded-md border border-slate-300 bg-white p-4 shadow-sm">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <input
@@ -279,6 +292,7 @@ export const UserManagementPage = () => {
             </div>
           )}
         </div>
+        )}
       </div>
       </PageLayout>
 

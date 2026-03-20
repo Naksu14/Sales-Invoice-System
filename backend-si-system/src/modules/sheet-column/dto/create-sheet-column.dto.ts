@@ -17,8 +17,13 @@ export class CreateSheetColumnDto {
 
 	@IsString()
 	@IsOptional()
-	@IsIn(['text', 'number', 'date'])
+	@IsIn(['text', 'number', 'date', 'dropdown'])
 	dataType?: string
+
+	@IsString()
+	@IsOptional()
+	@MaxLength(4000)
+	dropdownOptions?: string
 
 	@IsNumber()
 	@IsOptional()

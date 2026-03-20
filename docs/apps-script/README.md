@@ -1,9 +1,10 @@
-Apps Script Web App for appending rows to Google Sheets
+Apps Script Web App for appending and updating rows in Google Sheets
 
 Overview
 
-- This Apps Script provides a simple POST endpoint that appends rows to a target Google Sheet tab.
-- The script expects JSON with `spreadsheetId`, `sheetTabName`, and `rowValues`.
+- This Apps Script provides a simple POST endpoint that can append rows and update an existing row by match.
+- Append payload expects `spreadsheetId`, `sheetTabName`, and `rowValues`.
+- Update payload expects `action: "updateRowByMatch"`, `spreadsheetId`, `sheetTabName`, `oldRowValues`, and `newRowValues`.
 
 Setup & Deploy
 
@@ -32,4 +33,12 @@ Testing
 curl -X POST $WEBAPP_URL \
   -H 'Content-Type: application/json' \
   -d '{"spreadsheetId":"19Vr3KzG_w8MOr9qnCzOelMzLrLj_wphCOgs75ru21_Y","sheetTabName":"Sheet1","rowValues":["143","Daniela"]}'
+```
+
+- Test update-by-match action:
+
+```bash
+curl -X POST $WEBAPP_URL \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"updateRowByMatch","spreadsheetId":"19Vr3KzG_w8MOr9qnCzOelMzLrLj_wphCOgs75ru21_Y","sheetTabName":"Sheet1","oldRowValues":["143","Daniela"],"newRowValues":["143","Daniela Updated"]}'
 ```

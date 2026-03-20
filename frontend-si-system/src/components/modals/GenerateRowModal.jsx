@@ -8,11 +8,52 @@ import { createSiRecord } from '../../services/siRecordsService'
 
 const getColumnKey = (column) => column.dbFieldName || column.db_field_name || column.columnName
 const getColumnDataType = (column) => column.dataType || column.data_type || 'text'
+const normalizeFieldName = (value = '') => String(value).trim().toLowerCase().replace(/\s+/g, '_')
+const isStatusColumn = (column) => {
+  const key = normalizeFieldName(getColumnKey(column))
+  const columnName = normalizeFieldName(column.columnName || '')
+  return key === 'status' || columnName === 'status'
+}
 const getInputType = (column) => {
-  const dataType = getColumnDataType(column)
+  const dataType = getColumnDataType(column).toLowerCase()
+  if (dataType === 'dropdown' || dataType === 'select') return 'dropdown'
   if (dataType === 'number') return 'number'
   if (dataType === 'date') return 'date'
   return 'text'
+}
+const getDropdownOptions = (column) => {
+  const raw =
+    column.dropdownOptions ||
+    []
+
+  if (Array.isArray(raw)) {
+    return raw
+      .map((item) => (item === null || item === undefined ? '' : String(item).trim()))
+      .filter(Boolean)
+  }
+
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim()
+    if (!trimmed) return []
+
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((item) => (item === null || item === undefined ? '' : String(item).trim()))
+          .filter(Boolean)
+      }
+    } catch {
+      // fallback to comma/newline parsing
+    }
+
+    return trimmed
+      .split(/\r?\n|,/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+  }
+
+  return []
 }
 const normalizeValueForSubmit = (column, value) => {
   if (value === '' || value === null || value === undefined) return undefined
@@ -75,10 +116,16 @@ export default function GenerateRowModal({ isOpen, onClose, spreadsheetId, onSub
       return
     }
 
+    const statusColumn = columns.find((column) => isStatusColumn(column))
+    const statusKey = statusColumn ? getColumnKey(statusColumn) : null
+    const statusValue = statusKey ? String(values[statusKey] ?? '').trim().toLowerCase() : ''
+    const isCancelledStatus = statusValue === 'cancelled'
+
     // required field validation
     const missing = columns.filter((c) => {
       const key = getColumnKey(c)
       const value = values[key]
+      if (isCancelledStatus && !isStatusColumn(c)) return false
       if (!c.isRequired) return false
       if (value === null || value === undefined) return true
       return value.toString().trim() === ''
@@ -188,16 +235,31 @@ export default function GenerateRowModal({ isOpen, onClose, spreadsheetId, onSub
           ) : (
             columns.map(c => {
               const key = getColumnKey(c)
+              const inputType = getInputType(c)
+              const dropdownOptions = inputType === 'dropdown' ? getDropdownOptions(c) : []
               return (
                 <div key={c.id} className="flex flex-col">
                   <label className="text-lg text-slate-700">{c.columnName}<span className="text-red-500">{c.isRequired ? ' *' : ''}</span></label>
-                  <input
-                    type={getInputType(c)}
-                    value={values[key] || ''}
-                    onChange={(e) => handleChange(key, e.target.value)}
-                    className="w-full rounded-md border border-slate-200 px-3 py-2 text-lg outline-none"
-                    placeholder={c.columnName}
-                  />
+                  {inputType === 'dropdown' ? (
+                    <select
+                      value={values[key] || ''}
+                      onChange={(e) => handleChange(key, e.target.value)}
+                      className="w-full rounded-md border border-slate-200 px-3 py-2 text-lg outline-none bg-white"
+                    >
+                      <option value="">Select {c.columnName}</option>
+                      {dropdownOptions.map((option) => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type={inputType}
+                      value={values[key] || ''}
+                      onChange={(e) => handleChange(key, e.target.value)}
+                      className="w-full rounded-md border border-slate-200 px-3 py-2 text-lg outline-none"
+                      placeholder={c.columnName}
+                    />
+                  )}
                 </div>
               )
             })

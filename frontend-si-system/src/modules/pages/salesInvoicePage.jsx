@@ -25,14 +25,16 @@ import EditColumnModal from '../../components/modals/EditColumnModal'
 import GenerateRowModal from '../../components/modals/GenerateRowModal'
 import EditRecordModal from '../../components/modals/EditRecordModal'
 import { getSiRecordsBySheet, deleteSiRecord } from '../../services/siRecordsService'
+import { SkeletonLoader } from '../../components/ui/SkeletonLoader'
+import { PageLoadingError } from '../../components/ui/PageLoadingError'
 
 export const SalesInvoicePage = () => {
   const queryClient = useQueryClient();
-  const { data: invoiceNames = [] } = useQuery({ queryKey: ['invoiceNames'], queryFn: getInvoiceNames })
+  const { data: invoiceNames = [], isLoading: loadingInvoices, error: invoicesError } = useQuery({ queryKey: ['invoiceNames'], queryFn: getInvoiceNames })
   const [activeInvoiceId, setActiveInvoiceId] = useState(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isCreateColumnsOpen, setIsCreateColumnsOpen] = useState(false)
-  const { data: spreadsheets = [] } = useQuery({ queryKey: ['spreadsheets'], queryFn: getSpreadsheets })
+  const { data: spreadsheets = [], isLoading: loadingSheets, error: sheetsError } = useQuery({ queryKey: ['spreadsheets'], queryFn: getSpreadsheets })
   const [activeSheetId, setActiveSheetId] = useState(null)
 
   useEffect(() => {
@@ -197,7 +199,15 @@ export const SalesInvoicePage = () => {
             <p className="mt-1 text-lg text-slate-500">Manage and view all issued invoices, including client details, service descriptions, and payment information.</p>
           </div>
 
-          {invoiceNames && invoiceNames.length > 0 ? (
+          {(invoicesError || sheetsError) && (
+            <PageLoadingError 
+              error="Failed to load sales invoice data. Please check your connection and try again."
+            />
+          )}
+
+          {loadingInvoices || loadingSheets ? (
+            <SkeletonLoader type="card" count={1} />
+          ) : invoiceNames && invoiceNames.length > 0 ? (
             <>
               <div className='w-full flex justify-between'>
                 <div className="inline-flex items-center gap-2 bg-white shadow-sm rounded-xl p-1">

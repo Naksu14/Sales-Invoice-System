@@ -14,6 +14,8 @@ import ConfirmModal from '../../components/modals/ConfirmModal'
 import { getInvoiceNames, deleteInvoiceName } from '../../services/invoiceService'
 import { updateSpreadsheet, deleteSpreadsheet } from '../../services/spreadsheetsService'
 import { getSpreadsheets } from '../../services/spreadsheetsService'
+import { SkeletonLoader } from '../../components/ui/SkeletonLoader'
+import { PageLoadingError } from '../../components/ui/PageLoadingError'
 
 export const InvoiceProfilePage = () => {
   const queryClient = useQueryClient()
@@ -26,12 +28,12 @@ export const InvoiceProfilePage = () => {
   const [sheetDeleteOpen, setSheetDeleteOpen] = React.useState(false)
   const [sheetDeleteTarget, setSheetDeleteTarget] = React.useState(null)
 
-  const { data: invoiceNames } = useQuery({
+  const { data: invoiceNames, isLoading: loadingInvoices, error: invoicesError } = useQuery({
     queryKey: ['invoiceNames'],
     queryFn: getInvoiceNames
   });
 
-  const { data: spreadsheets = [] } = useQuery({
+  const { data: spreadsheets = [], isLoading: loadingSheets, error: sheetsError } = useQuery({
     queryKey: ['spreadsheets'],
     queryFn: getSpreadsheets,
     staleTime: 1000 * 60,
@@ -76,7 +78,7 @@ export const InvoiceProfilePage = () => {
               <p className="mt-1 text-lg text-slate-500">Manage and view all invoices type, spreadsheet link and tab name</p>
             </div>
             <div>
-              {invoiceNames && invoiceNames.length > 0 && (
+              {!loadingInvoices && invoiceNames && invoiceNames.length > 0 && (
                 <Button variant="primary" size="md" onClick={() => { setSelectedInvoice(null); setIsModalOpen(true) }} tooltip="Add a new invoice">
                   <AddCircleOutlineIcon sx={{ fontSize: 16 }} className='mr-2'/>
                   Add New Invoice
@@ -85,8 +87,15 @@ export const InvoiceProfilePage = () => {
             </div>
           </div>
 
-          {/* If there are invoice profiles show them as cards, otherwise show placeholder */}
-          {invoiceNames && invoiceNames.length > 0 ? (
+          {(invoicesError || sheetsError) && (
+            <PageLoadingError 
+              error="Failed to load invoice profiles. Please check your connection and try again."
+            />
+          )}
+
+          {loadingInvoices || loadingSheets ? (
+            <SkeletonLoader type="grid" count={4} />
+          ) : invoiceNames && invoiceNames.length > 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {invoiceNames.map((item) => (
                 <div key={item.id} className="rounded-sm bg-white p-6 shadow-sm relative overflow-hidden">

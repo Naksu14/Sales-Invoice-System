@@ -2,19 +2,22 @@ import React, { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import CloseIcon from '@mui/icons-material/Close'
 import Button from '../ui/Button'
+import DropdownOptionsModal from './DropdownOptionsModal'
 import { updateColumn } from '../../services/columnTableService'
 import { useQueryClient } from '@tanstack/react-query'
 
-const DATA_TYPE_OPTIONS = ['text', 'number', 'date']
+const DATA_TYPE_OPTIONS = ['text', 'number', 'date', 'dropdown']
 
 export default function EditColumnModal({ isOpen, onClose, initialData = null, onSuccess, onError }) {
   const [columnName, setColumnName] = useState('')
   const [dbFieldName, setDbFieldName] = useState('')
   const [dataType, setDataType] = useState('text')
+  const [dropdownOptions, setDropdownOptions] = useState('')
   const [columnOrder, setColumnOrder] = useState('')
   const [isRequired, setIsRequired] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [isOptionsModalOpen, setIsOptionsModalOpen] = useState(false)
   const queryClient = useQueryClient()
 
   useEffect(() => {
@@ -23,6 +26,7 @@ export default function EditColumnModal({ isOpen, onClose, initialData = null, o
     setColumnName(initialData?.columnName || '')
     setDbFieldName(initialData?.dbFieldName || initialData?.db_field_name || '')
     setDataType(initialData?.dataType || initialData?.data_type || 'text')
+    setDropdownOptions(initialData?.dropdownOptions || initialData?.dropdown_options || '')
     setColumnOrder(initialData?.columnOrder ?? initialData?.column_order ?? '')
     setIsRequired(initialData?.isRequired ?? initialData?.is_required ?? false)
   }, [isOpen, initialData])
@@ -33,11 +37,20 @@ export default function EditColumnModal({ isOpen, onClose, initialData = null, o
     .trim()
     .toLowerCase()
     .replace(/\s+/g, '_')
+  const getOptionCount = (rawValue = '') => rawValue
+    .split(/\r?\n|,/)
+    .map(item => item.trim())
+    .filter(Boolean)
+    .length
 
   const handleSave = async () => {
     setError('')
     if (!columnName.trim()) {
       setError('Column name is required.')
+      return
+    }
+    if (dataType === 'dropdown' && !dropdownOptions.trim()) {
+      setError('Dropdown options are required for dropdown data type.')
       return
     }
     setLoading(true)
@@ -46,6 +59,7 @@ export default function EditColumnModal({ isOpen, onClose, initialData = null, o
         columnName: columnName.trim(),
         dbFieldName: dbFieldName.trim(),
         dataType,
+        dropdownOptions: dataType === 'dropdown' ? dropdownOptions.trim() : undefined,
         columnOrder: columnOrder === '' ? undefined : Number(columnOrder),
         isRequired: !!isRequired,
       }
@@ -123,7 +137,13 @@ export default function EditColumnModal({ isOpen, onClose, initialData = null, o
           <label className="block text-sm text-slate-700">Data Type:</label>
           <select
             value={dataType}
-            onChange={(e) => setDataType(e.target.value)}
+            onChange={(e) => {
+              const nextType = e.target.value
+              setDataType(nextType)
+              if (nextType !== 'dropdown') {
+                setDropdownOptions('')
+              }
+            }}
             className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none bg-white"
           >
             {DATA_TYPE_OPTIONS.map((option) => (
@@ -132,6 +152,19 @@ export default function EditColumnModal({ isOpen, onClose, initialData = null, o
               </option>
             ))}
           </select>
+
+          {dataType === 'dropdown' && (
+            <>
+              <label className="block text-sm text-slate-700">Dropdown Options:</label>
+              <button
+                type="button"
+                onClick={() => setIsOptionsModalOpen(true)}
+                className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none bg-white text-left"
+              >
+                Edit options ({getOptionCount(dropdownOptions)})
+              </button>
+            </>
+          )}
 
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={isRequired} onChange={(e) => setIsRequired(e.target.checked)} />
@@ -147,6 +180,14 @@ export default function EditColumnModal({ isOpen, onClose, initialData = null, o
             </Button>
           </div>
         </form>
+
+        <DropdownOptionsModal
+          isOpen={isOptionsModalOpen}
+          onClose={() => setIsOptionsModalOpen(false)}
+          initialValue={dropdownOptions}
+          onSave={(items) => setDropdownOptions(items.join('\n'))}
+          title="Dropdown Options"
+        />
       </div>
     </div>,
     document.body
