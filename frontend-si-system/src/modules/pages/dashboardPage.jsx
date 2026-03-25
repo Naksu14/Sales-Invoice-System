@@ -29,17 +29,6 @@ import { useNavigate } from 'react-router-dom'
 
 const EMPTY_ARRAY = []
 
-const pieData = [
-  { id: 0, value: 38, label: 'Virtual Office', color: '#316e7e' },
-  { id: 1, value: 27, label: 'Meeting Rooms', color: '#ccd83e' },
-  { id: 2, value: 20, label: 'Walk-Ins', color: '#dce3b1' },
-  { id: 3, value: 15, label: 'Events', color: '#a9c0a2' },
-  { id: 4, value: 10, label: 'Monthly Membership', color: '#f59e0b' },
-  { id: 5, value: 8, label: 'Private Office', color: '#ef4444' },
-  { id: 6, value: 6, label: 'Add Ons', color: '#7c3aed' },
-  { id: 7, value: 4, label: 'Fixed Desk', color: '#06b6d4' },
-]
-
 const parseCurrencyAmount = (value) => {
   if (value === null || value === undefined || value === '') return 0
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0
@@ -426,9 +415,8 @@ export const DashboardPage = () => {
         const counts = {}
         const unknowns = []
         const inferred = []
-        // build a lowercase label map from static pieData for inference
+        // labelMap left empty — inference from a static list removed
         const labelMap = {}
-        pieData.forEach((p) => { labelMap[p.label.toLowerCase()] = p.label })
 
         // count ONLY explicit type_of_service fields; do NOT include inferred values in counts
         allRecords.forEach((rec) => {
@@ -719,7 +707,7 @@ export const DashboardPage = () => {
       }
     })
 
-    const serviceRows = (serviceChartData.length > 0 ? serviceChartData : pieData).map((item) => ({
+    const serviceRows = (serviceChartData.length > 0 ? serviceChartData : []).map((item) => ({
       serviceType: item.label,
       count: Number(item.value || 0),
     }))
@@ -1103,7 +1091,7 @@ export const DashboardPage = () => {
                   height={390}
                   series={[
                     {
-                      data: serviceChartData.length > 0 ? serviceChartData : pieData,
+                      data: serviceChartData,
                       innerRadius: 40,
                       outerRadius: 70,
                       paddingAngle: 2,
@@ -1128,7 +1116,7 @@ export const DashboardPage = () => {
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-slate-600">
-                {pieData.map((item) => (
+                {serviceChartData.map((item) => (
                   <div key={item.id} className="flex items-center gap-2">
                     <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
                     {item.label}
