@@ -6,7 +6,7 @@ import DropdownOptionsModal from './DropdownOptionsModal'
 import { createColumn } from '../../services/columnTableService'
 import { useQueryClient } from '@tanstack/react-query'
 
-const DEFAULT_ROW = { columnName: '', dbFieldName: '', dataType: 'text', dropdownOptions: '', columnOrder: '', isRequired: false }
+const DEFAULT_ROW = { columnName: '', dbFieldName: '', dataType: 'text', dropdownOptions: '', columnOrder: '', isRequired: true }
 const DATA_TYPE_OPTIONS = ['text', 'number', 'date', 'dropdown']
 
 export default function CreateColumnsModal({ isOpen, onClose, spreadsheetId, onSuccess }) {
@@ -80,7 +80,7 @@ export default function CreateColumnsModal({ isOpen, onClose, spreadsheetId, onS
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-6xl rounded-lg bg-white p-6 shadow-lg text-left">
+      <div className="w-full max-w-6xl max-h-[90vh] rounded-lg bg-white p-6 shadow-lg text-left overflow-hidden flex flex-col">
         <div className="mb-6 flex items-start justify-between">
           <div>
             <h3 className="text-lg font-semibold">Create Columns</h3>
@@ -91,8 +91,8 @@ export default function CreateColumnsModal({ isOpen, onClose, spreadsheetId, onS
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
+        <form onSubmit={handleSubmit} className="flex flex-1 min-h-0 flex-col space-y-6">
+          <div className="space-y-2 flex-1 min-h-0 overflow-y-auto pr-1">
             {rows.map((row, idx) => (
               <div key={idx} className="rounded-lg border border-slate-200 bg-slate-50/40 p-3">
                 <div className="mb-3 flex items-center justify-between">

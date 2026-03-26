@@ -21,6 +21,7 @@ import Tooltip from '@mui/material/Tooltip'
 import { useQuery } from '@tanstack/react-query'
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader'
 import { PageLoadingError } from '../../components/ui/PageLoadingError'
+import { getCurrentUser } from '../../services/authService'
 import { getInvoiceNames } from '../../services/invoiceService'
 import { getSpreadsheets } from '../../services/spreadsheetsService'
 import { getSiRecordsBySheet } from '../../services/siRecordsService'
@@ -57,7 +58,8 @@ const parseDateInputLocal = (dateString) => {
   return new Date(year, month - 1, day)
 }
 
-const getDateFromRecord = (record, preferredDateKeys = []) => {
+const getDateFromRecord = (record, preferredDateKeys = [], options = {}) => {
+  const { allowCreatedAtFallback = true } = options
   const data = record?.data || {}
 
   for (const key of preferredDateKeys) {
@@ -76,6 +78,8 @@ const getDateFromRecord = (record, preferredDateKeys = []) => {
       if (!Number.isNaN(date.getTime())) return date
     }
   }
+
+  if (!allowCreatedAtFallback) return null
 
   const createdAt = new Date(record?.createdAt || record?.created_at || 0)
   return Number.isNaN(createdAt.getTime()) ? null : createdAt
@@ -105,6 +109,7 @@ const getAmountFromRecord = (record, preferredAmountKeys = []) => {
 export const DashboardPage = () => {
   const { data: invoiceNames = EMPTY_ARRAY, isLoading: loadingInvoices, error: invoicesError } = useQuery({ queryKey: ['invoiceNames'], queryFn: getInvoiceNames })
   const { data: spreadsheets = EMPTY_ARRAY, isLoading: loadingSheets, error: sheetsError } = useQuery({ queryKey: ['spreadsheets'], queryFn: getSpreadsheets })
+  const { data: currentUser } = useQuery({ queryKey: ['currentUser'], queryFn: getCurrentUser })
 
   const navigate = useNavigate()
 
@@ -136,6 +141,14 @@ export const DashboardPage = () => {
   const [filterEndDate, setFilterEndDate] = useState('')
   const [pendingExportFormat, setPendingExportFormat] = useState(null)
   const [dateValidationError, setDateValidationError] = useState('')
+  const storedUser = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || 'null')
+    } catch {
+      return null
+    }
+  }, [])
+  const exportedByName = currentUser?.full_name || storedUser?.full_name || currentUser?.name || storedUser?.name || 'System User'
   const sheetsForActiveInvoice = useMemo(
     () => (activeInvoiceId == null
       ? spreadsheets
@@ -596,65 +609,140 @@ export const DashboardPage = () => {
 
   const viewRecordEntries = Object.entries(viewRecordTarget?.data || {})
 
-  const buildExportData = (startDate = null, endDate = null) => {
-    const hasDateFilter = !!(startDate || endDate)
+  const buildExportData = async (startDate = null, endDate = null) => {
+    const startBoundary = startDate ? (parseDateInputLocal(startDate)?.getTime() ?? 0) : 0
+    const endBoundary = endDate
+      ? (parseDateInputLocal(endDate)?.getTime() ?? Infinity) + 86400000 - 1
+      : Infinity
 
-    // Filter recent records table by selected date range (does not affect
-    // the main dashboard summary/graphs so exported metrics stay aligned
-    // with what is shown on the dashboard cards and charts).
-    let filteredRecords = recentRecords
-    if (hasDateFilter) {
-      const startBoundary = startDate ? (parseDateInputLocal(startDate)?.getTime() ?? 0) : 0
-      const endBoundary = endDate
-        ? (parseDateInputLocal(endDate)?.getTime() ?? Infinity) + 86400000 - 1
-        : Infinity
+    const monthTotals = new Map()
+    const serviceTypeCounts = {}
+    const colors = ['#316e7e', '#ccd83e', '#dce3b1', '#a9c0a2', '#f59e0b', '#ef4444', '#7c3aed', '#06b6d4']
 
-      filteredRecords = recentRecords.filter((record) => {
-        const recordDate = new Date(record.createdAt || record.created_at || 0).getTime()
-        return recordDate >= startBoundary && recordDate <= endBoundary
+    const filteredRecords = []
+    let totalSales = 0
+    let totalInvoicesIssued = 0
+    let totalAcknowledgedReceipts = 0
+
+    const recordsBySheet = await Promise.all(
+      sheetsForActiveInvoice.map(async (sheet) => {
+        const [columns, records] = await Promise.all([
+          getColumns(sheet.id).catch(() => []),
+          getSiRecordsBySheet(sheet.id).catch(() => []),
+        ])
+        return { sheet, columns, records }
+      }),
+    )
+
+    recordsBySheet.forEach(({ sheet, columns, records }) => {
+      const sheetTabName = (sheet?.sheetTabName || '').toString().toLowerCase()
+
+      const dateColumn = (columns || []).find((col) => {
+        const dbField = normalizeFieldName(col.dbFieldName || col.db_field_name || '')
+        const sheetField = normalizeFieldName(col.sheetColumnName || col.sheet_column_name || col.sheetHeader || '')
+        return dbField === 'date' || sheetField === 'date'
       })
-    }
+
+      const preferredDateKeys = [
+        dateColumn?.dbFieldName,
+        dateColumn?.db_field_name,
+        dateColumn?.sheetColumnName,
+        dateColumn?.sheet_column_name,
+        'date',
+      ].filter(Boolean)
+
+      const amountColumns = (columns || []).filter((col) => {
+        const dbField = normalizeFieldName(col.dbFieldName || col.db_field_name || '')
+        const sheetField = normalizeFieldName(col.sheetColumnName || col.sheet_column_name || col.sheetHeader || '')
+        return dbField === 'oramount' || dbField === 'aramount' || sheetField === 'oramount' || sheetField === 'aramount'
+      })
+
+      const preferredAmountKeys = [
+        ...amountColumns.flatMap((col) => [
+          col.dbFieldName,
+          col.db_field_name,
+          col.sheetColumnName,
+          col.sheet_column_name,
+        ]),
+        'or_amount',
+        'ar_amount',
+        'orAmount',
+        'arAmount',
+        'OR Amount',
+        'AR Amount',
+      ].filter(Boolean)
+
+      records.forEach((record) => {
+        const recordDate = getDateFromRecord(record, preferredDateKeys, { allowCreatedAtFallback: false })
+        if (!recordDate) return
+
+        const recordTime = recordDate.getTime()
+        if (recordTime < startBoundary || recordTime > endBoundary) return
+
+        const amount = getAmountFromRecord(record, preferredAmountKeys)
+        totalSales += amount
+
+        if (sheetTabName === 'si') totalInvoicesIssued += 1
+        if (sheetTabName === 'ar') totalAcknowledgedReceipts += 1
+
+        const monthKey = `${recordDate.getFullYear()}-${String(recordDate.getMonth() + 1).padStart(2, '0')}`
+        monthTotals.set(monthKey, (monthTotals.get(monthKey) || 0) + amount)
+
+        const data = record?.data || {}
+        const serviceTypeRaw = data.type_of_service || data.typeOfService || data.service_type || data.serviceType || ''
+        const serviceType = serviceTypeRaw.toString().trim()
+        if (serviceType) {
+          serviceTypeCounts[serviceType] = (serviceTypeCounts[serviceType] || 0) + 1
+        }
+
+        filteredRecords.push({
+          ...record,
+          __recordDate: recordDate,
+          __sheetTabName: sheet?.sheetTabName || '-',
+        })
+      })
+    })
 
     const summaryRows = [
-      { metric: 'Total Sales', rawValue: totalSalesAmount, value: formatCurrency(totalSalesAmount) },
-      { metric: 'Sales Today', rawValue: salesTodayAmount, value: formatCurrency(salesTodayAmount) },
-      { metric: 'Sales Yesterday', rawValue: salesYesterdayAmount, value: formatCurrency(salesYesterdayAmount) },
-      { metric: 'Receipts This Month', rawValue: siThisMonthCount, value: String(siThisMonthCount) },
-      { metric: 'Receipts Today', rawValue: siTodayCount, value: String(siTodayCount) },
-      { metric: 'Receipts Yesterday', rawValue: siYesterdayCount, value: String(siYesterdayCount) },
-      { metric: 'Acknowledged Receipts Total', rawValue: arTotalCount, value: String(arTotalCount) },
-      { metric: 'Acknowledged Receipts Today', rawValue: arTodayCount, value: String(arTodayCount) },
-      { metric: 'Acknowledged Receipts Yesterday', rawValue: arYesterdayCount, value: String(arYesterdayCount) },
+      { metric: 'Total Sales', rawValue: Number(totalSales.toFixed(2)), value: formatCurrency(totalSales) },
+      { metric: 'Total Invoices Issued', rawValue: totalInvoicesIssued, value: String(totalInvoicesIssued) },
+      { metric: 'Total Acknowledged Receipts', rawValue: totalAcknowledgedReceipts, value: String(totalAcknowledgedReceipts) },
+      { metric: 'Total Records in Range', rawValue: filteredRecords.length, value: String(filteredRecords.length) },
     ]
 
-    const monthlyRows = revenueMonthLabels.map((month, index) => {
-      const invoiceValues = revenueSeries.reduce((acc, series) => {
-        acc[series.label] = series.data[index] || 0
-        return acc
-      }, {})
+    const sortedMonthKeys = [...monthTotals.keys()].sort((a, b) => {
+      const aDate = new Date(`${a}-01T00:00:00`)
+      const bDate = new Date(`${b}-01T00:00:00`)
+      return aDate.getTime() - bDate.getTime()
+    })
 
-      const total = Object.values(invoiceValues).reduce((sum, value) => sum + Number(value || 0), 0)
+    const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', year: 'numeric' })
+    const monthlyRows = sortedMonthKeys.map((monthKey) => {
+      const [year, month] = monthKey.split('-')
+      const total = Number(monthTotals.get(monthKey) || 0)
       return {
-        month,
-        ...invoiceValues,
+        month: monthFormatter.format(new Date(Number(year), Number(month) - 1, 1)),
+        monthKey,
         totalRevenueRaw: Number(total.toFixed(2)),
         totalRevenue: formatCurrency(total),
       }
     })
 
-    const serviceRows = (serviceChartData.length > 0 ? serviceChartData : []).map((item) => ({
-      serviceType: item.label,
-      count: Number(item.value || 0),
-      color: item.color,
+    const serviceRows = Object.keys(serviceTypeCounts).map((serviceType, idx) => ({
+      serviceType,
+      count: Number(serviceTypeCounts[serviceType] || 0),
+      color: colors[idx % colors.length],
     }))
 
-    const recentRows = filteredRecords.map((record) => ({
-      recordId: record.id,
-      dateCreated: toLocalDateTime(record.createdAt || record.created_at),
-      inputUser: getInputUser(record),
-      tabName: record.spreadsheet?.sheetTabName || sheetsForActiveInvoice.find((s) => s.id === activeSheetId)?.sheetTabName || '-',
-      preview: getPreview(record),
-    }))
+    const recentRows = [...filteredRecords]
+      .sort((a, b) => b.__recordDate.getTime() - a.__recordDate.getTime())
+      .map((record) => ({
+        recordId: record.id,
+        dateCreated: toLocalDateTime(record.__recordDate),
+        inputUser: getInputUser(record),
+        tabName: record.__sheetTabName,
+        preview: getPreview(record),
+      }))
 
     return { summaryRows, monthlyRows, serviceRows, recentRows }
   }
@@ -724,7 +812,7 @@ export const DashboardPage = () => {
     if (pendingExportFormat === 'excel') {
       try {
         setIsExportingExcel(true)
-        const { summaryRows, monthlyRows, serviceRows, recentRows } = buildExportData(filterStartDate, filterEndDate)
+        const { summaryRows, monthlyRows, serviceRows, recentRows } = await buildExportData(filterStartDate, filterEndDate)
 
         const workbook = XLSX.utils.book_new()
 
@@ -771,12 +859,15 @@ export const DashboardPage = () => {
     } else if (pendingExportFormat === 'pdf') {
       try {
         setIsExportingPdf(true)
-        const { summaryRows, monthlyRows, serviceRows, recentRows } = buildExportData(filterStartDate, filterEndDate)
+        const { summaryRows, monthlyRows, serviceRows, recentRows } = await buildExportData(filterStartDate, filterEndDate)
         const generatedAt = new Date().toLocaleString()
 
         const blob = await pdf(
           <DashboardAnalyticsPdfDocument
             generatedAt={generatedAt}
+            exportedByName={exportedByName}
+            startDate={filterStartDate}
+            endDate={filterEndDate}
             summaryRows={summaryRows}
             monthlyRows={monthlyRows}
             serviceRows={serviceRows}
