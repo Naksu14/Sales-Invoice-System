@@ -6,6 +6,7 @@ import { CreateSiRecordDto } from './dto/create-si-record.dto';
 import { UpdateSiRecordDto } from './dto/update-si-record.dto';
 import { Spreadsheet } from '../spreadsheets/entities/spreadsheet.entity';
 import { SheetColumn } from '../sheet-column/entities/sheet-column.entity';
+import { SiUser } from '../si-users/entities/si-user.entity';
 import { GoogleSheetsService } from '../spreadsheets/google-sheets.service';
 
 @Injectable()
@@ -17,16 +18,25 @@ export class SiRecordsService {
     private spreadsheetRepository: Repository<Spreadsheet>,
     @InjectRepository(SheetColumn)
     private sheetColumnRepository: Repository<SheetColumn>,
+    @InjectRepository(SiUser)
+    private siUserRepository: Repository<SiUser>,
     private googleSheetsService: GoogleSheetsService,
   ) {}
 
   async create(createSiRecordDto: CreateSiRecordDto) {
     const spreadsheet = await this.spreadsheetRepository.findOne({ where: { id: createSiRecordDto.sheetId } });
     if (!spreadsheet) throw new NotFoundException('Spreadsheet not found');
+    let inputUser: SiUser | undefined = undefined
+    if (createSiRecordDto.inputUserId !== undefined && createSiRecordDto.inputUserId !== null) {
+      const foundUser = await this.siUserRepository.findOne({ where: { user_id: createSiRecordDto.inputUserId } })
+      if (!foundUser) throw new NotFoundException('Input user not found')
+      inputUser = foundUser
+    }
 
     const siRecord = this.siRecordRepository.create({
       data: createSiRecordDto.data,
       spreadsheet,
+      inputUser,
     });
     const saved = await this.siRecordRepository.save(siRecord);
 
@@ -74,19 +84,19 @@ export class SiRecordsService {
   }
 
   findAll() {
-    return this.siRecordRepository.find({ relations: ['spreadsheet'] });
+    return this.siRecordRepository.find({ relations: ['spreadsheet', 'inputUser'] });
   }
 
   findBySheet(sheetId: number) {
     return this.siRecordRepository.find({
       where: { spreadsheet: { id: sheetId } },
-      relations: ['spreadsheet'],
+      relations: ['spreadsheet', 'inputUser'],
       order: { createdAt: 'DESC' },
     });
   }
 
   async findOne(id: number) {
-    const siRecord = await this.siRecordRepository.findOne({ where: { id }, relations: ['spreadsheet'] });
+    const siRecord = await this.siRecordRepository.findOne({ where: { id }, relations: ['spreadsheet', 'inputUser'] });
     if (!siRecord) throw new NotFoundException('SI record not found');
     return siRecord;
   }
@@ -105,6 +115,16 @@ export class SiRecordsService {
       const spreadsheet = await this.spreadsheetRepository.findOne({ where: { id: updateSiRecordDto.sheetId } });
       if (!spreadsheet) throw new NotFoundException('Spreadsheet not found');
       updatePayload.spreadsheet = spreadsheet;
+    }
+
+    if (updateSiRecordDto.inputUserId !== undefined) {
+      if (updateSiRecordDto.inputUserId === null) {
+        updatePayload.inputUser = null
+      } else {
+        const user = await this.siUserRepository.findOne({ where: { user_id: updateSiRecordDto.inputUserId } })
+        if (!user) throw new NotFoundException('Input user not found')
+        updatePayload.inputUser = user
+      }
     }
 
     if (Object.keys(updatePayload).length === 0) {

@@ -329,7 +329,41 @@ export const SalesInvoicePage = () => {
                                       const key = c.dbFieldName || c.columnName
                                       return (
                                         <td key={c.id} className="border-b border-slate-200 px-4 py-4">
-                                          {record.data?.[key] ?? <span className="text-slate-300">—</span>}
+                                          {(() => {
+                                            const rawVal = record.data?.[key]
+                                            if (rawVal === undefined || rawVal === null || rawVal === '') return <span className="text-slate-300">—</span>
+
+                                            const val = String(rawVal)
+                                            const lower = val.trim().toLowerCase()
+                                            const isStatus = (c.dbFieldName && c.dbFieldName.toLowerCase().includes('status')) || (c.columnName && c.columnName.toLowerCase().includes('status'))
+
+                                            if (isStatus) {
+                                              let bg = 'bg-slate-100'
+                                              let text = 'text-slate-700'
+
+                                              if (lower === 'paid') {
+                                                bg = 'bg-green-100'
+                                                text = 'text-green-800'
+                                              } else if (lower === 'active') {
+                                                bg = 'bg-teal-100'
+                                                text = 'text-teal-800'
+                                              } else if (lower === 'unpaid') {
+                                                bg = 'bg-amber-100'
+                                                text = 'text-amber-800'
+                                              } else if (lower === 'cancelled' || lower === 'canceled') {
+                                                bg = 'bg-rose-100'
+                                                text = 'text-rose-800'
+                                              }
+
+                                              return (
+                                                <span className={`${bg} ${text} inline-flex items-center rounded-full px-2 py-0.5 text-sm`}>
+                                                  {val}
+                                                </span>
+                                              )
+                                            }
+
+                                            return val
+                                          })()}
                                         </td>
                                       )
                                     })}

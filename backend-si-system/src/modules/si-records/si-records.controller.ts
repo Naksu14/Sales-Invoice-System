@@ -1,14 +1,20 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards, Request } from '@nestjs/common';
 import { SiRecordsService } from './si-records.service';
 import { CreateSiRecordDto } from './dto/create-si-record.dto';
 import { UpdateSiRecordDto } from './dto/update-si-record.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('si-records')
 export class SiRecordsController {
   constructor(private readonly siRecordsService: SiRecordsService) {}
 
+  @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Body() createSiRecordDto: CreateSiRecordDto) {
+  create(@Request() req, @Body() createSiRecordDto: CreateSiRecordDto) {
+    // automatically set inputUserId from authenticated user
+    if (req?.user?.user_id) {
+      createSiRecordDto.inputUserId = req.user.user_id
+    }
     return this.siRecordsService.create(createSiRecordDto);
   }
 

@@ -190,7 +190,7 @@ export class GoogleSheetsService {
   }
 
   try {
-    console.log('[GoogleSheets] Append:', rowValues);
+    // console.log('[GoogleSheets] Append:', rowValues);
 
     const webAppUrl = this.getWebAppUrl();
 
@@ -235,10 +235,10 @@ export class GoogleSheetsService {
   }
 
   try {
-    console.log('[GoogleSheets] Update:', {
-      oldRowValues,
-      newRowValues,
-    });
+    //console.log('[GoogleSheets] Update:', {
+    //  oldRowValues,
+    //  newRowValues,
+    //});
 
     const webAppUrl = this.getWebAppUrl();
 

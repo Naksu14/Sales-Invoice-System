@@ -12,7 +12,7 @@ import SearchIcon from '@mui/icons-material/Search'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import { BarChart } from '@mui/x-charts/BarChart'
 import { PieChart } from '@mui/x-charts/PieChart'
-import { Document, Page, StyleSheet, Text, View, pdf } from '@react-pdf/renderer'
+import { pdf } from '@react-pdf/renderer'
 import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
 import { PageLayout } from '../../components/pageLayout'
@@ -26,6 +26,7 @@ import { getSpreadsheets } from '../../services/spreadsheetsService'
 import { getSiRecordsBySheet } from '../../services/siRecordsService'
 import { getColumns } from '../../services/columnTableService'
 import { useNavigate } from 'react-router-dom'
+import DashboardAnalyticsPdfDocument from './DashboardAnalyticsPdfDocument'
 
 const EMPTY_ARRAY = []
 
@@ -48,6 +49,13 @@ const formatCurrency = (value) => new Intl.NumberFormat('en-PH', {
 }).format(value || 0)
 
 const normalizeFieldName = (value) => value.toString().toLowerCase().replace(/[^a-z0-9]/g, '')
+
+const parseDateInputLocal = (dateString) => {
+  if (!dateString) return null
+  const [year, month, day] = dateString.split('-').map(Number)
+  if (!year || !month || !day) return null
+  return new Date(year, month - 1, day)
+}
 
 const getDateFromRecord = (record, preferredDateKeys = []) => {
   const data = record?.data || {}
@@ -94,108 +102,6 @@ const getAmountFromRecord = (record, preferredAmountKeys = []) => {
   return 0
 }
 
-const pdfStyles = StyleSheet.create({
-  page: {
-    padding: 24,
-    fontSize: 10,
-    color: '#0f172a',
-  },
-  title: {
-    fontSize: 16,
-    marginBottom: 6,
-    fontWeight: 700,
-  },
-  subtitle: {
-    marginBottom: 10,
-    color: '#475569',
-  },
-  section: {
-    marginBottom: 12,
-    border: '1 solid #e2e8f0',
-    borderRadius: 4,
-    padding: 8,
-  },
-  sectionTitle: {
-    fontSize: 11,
-    marginBottom: 6,
-    fontWeight: 700,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
-    paddingVertical: 2,
-    borderBottom: '1 solid #f1f5f9',
-  },
-  label: {
-    color: '#334155',
-  },
-  value: {
-    color: '#0f172a',
-  },
-  note: {
-    marginTop: 10,
-    color: '#64748b',
-  },
-})
-
-const DashboardAnalyticsPdfDocument = ({
-  generatedAt,
-  summaryRows,
-  monthlyRows,
-  serviceRows,
-  recentRows,
-}) => (
-  <Document>
-    <Page size="A4" style={pdfStyles.page}>
-      <Text style={pdfStyles.title}>Dashboard Analytics Report</Text>
-      <Text style={pdfStyles.subtitle}>Generated: {generatedAt}</Text>
-
-      <View style={pdfStyles.section}>
-        <Text style={pdfStyles.sectionTitle}>Summary</Text>
-        {summaryRows.map((row) => (
-          <View style={pdfStyles.row} key={row.metric}>
-            <Text style={pdfStyles.label}>{row.metric}</Text>
-            <Text style={pdfStyles.value}>{row.value}</Text>
-          </View>
-        ))}
-      </View>
-
-      <View style={pdfStyles.section}>
-        <Text style={pdfStyles.sectionTitle}>Monthly Revenue (by Invoice)</Text>
-        {monthlyRows.slice(0, 12).map((row) => (
-          <View style={pdfStyles.row} key={row.month}>
-            <Text style={pdfStyles.label}>{row.month}</Text>
-            <Text style={pdfStyles.value}>{row.totalRevenue}</Text>
-          </View>
-        ))}
-      </View>
-
-      <View style={pdfStyles.section}>
-        <Text style={pdfStyles.sectionTitle}>Revenue by Service Type</Text>
-        {serviceRows.map((row) => (
-          <View style={pdfStyles.row} key={row.serviceType}>
-            <Text style={pdfStyles.label}>{row.serviceType}</Text>
-            <Text style={pdfStyles.value}>{row.count}</Text>
-          </View>
-        ))}
-      </View>
-
-      <View style={pdfStyles.section}>
-        <Text style={pdfStyles.sectionTitle}>Recent Service Invoices (Top 10)</Text>
-        {recentRows.slice(0, 10).map((row) => (
-          <View style={pdfStyles.row} key={row.recordId}>
-            <Text style={pdfStyles.label}>#{row.recordId} - {row.inputUser}</Text>
-            <Text style={pdfStyles.value}>{row.dateCreated}</Text>
-          </View>
-        ))}
-      </View>
-
-      <Text style={pdfStyles.note}>This report summarizes the current dashboard filter selection.</Text>
-    </Page>
-  </Document>
-)
-
 export const DashboardPage = () => {
   const { data: invoiceNames = EMPTY_ARRAY, isLoading: loadingInvoices, error: invoicesError } = useQuery({ queryKey: ['invoiceNames'], queryFn: getInvoiceNames })
   const { data: spreadsheets = EMPTY_ARRAY, isLoading: loadingSheets, error: sheetsError } = useQuery({ queryKey: ['spreadsheets'], queryFn: getSpreadsheets })
@@ -225,6 +131,11 @@ export const DashboardPage = () => {
   const [isExportingExcel, setIsExportingExcel] = useState(false)
   const [isExportingPdf, setIsExportingPdf] = useState(false)
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false)
+  const [isExportDateFilterOpen, setIsExportDateFilterOpen] = useState(false)
+  const [filterStartDate, setFilterStartDate] = useState('')
+  const [filterEndDate, setFilterEndDate] = useState('')
+  const [pendingExportFormat, setPendingExportFormat] = useState(null)
+  const [dateValidationError, setDateValidationError] = useState('')
   const sheetsForActiveInvoice = useMemo(
     () => (activeInvoiceId == null
       ? spreadsheets
@@ -607,6 +518,12 @@ export const DashboardPage = () => {
 
   const getInputUser = (record) => {
     const data = record?.data || {}
+
+    if (record?.inputUser) {
+      // prefer relation returned by backend
+      return record.inputUser.full_name || record.inputUser.user_id || '-'
+    }
+
     return (
       data.inputUser ||
       data.input_user ||
@@ -679,7 +596,25 @@ export const DashboardPage = () => {
 
   const viewRecordEntries = Object.entries(viewRecordTarget?.data || {})
 
-  const buildExportData = () => {
+  const buildExportData = (startDate = null, endDate = null) => {
+    const hasDateFilter = !!(startDate || endDate)
+
+    // Filter recent records table by selected date range (does not affect
+    // the main dashboard summary/graphs so exported metrics stay aligned
+    // with what is shown on the dashboard cards and charts).
+    let filteredRecords = recentRecords
+    if (hasDateFilter) {
+      const startBoundary = startDate ? (parseDateInputLocal(startDate)?.getTime() ?? 0) : 0
+      const endBoundary = endDate
+        ? (parseDateInputLocal(endDate)?.getTime() ?? Infinity) + 86400000 - 1
+        : Infinity
+
+      filteredRecords = recentRecords.filter((record) => {
+        const recordDate = new Date(record.createdAt || record.created_at || 0).getTime()
+        return recordDate >= startBoundary && recordDate <= endBoundary
+      })
+    }
+
     const summaryRows = [
       { metric: 'Total Sales', rawValue: totalSalesAmount, value: formatCurrency(totalSalesAmount) },
       { metric: 'Sales Today', rawValue: salesTodayAmount, value: formatCurrency(salesTodayAmount) },
@@ -710,9 +645,10 @@ export const DashboardPage = () => {
     const serviceRows = (serviceChartData.length > 0 ? serviceChartData : []).map((item) => ({
       serviceType: item.label,
       count: Number(item.value || 0),
+      color: item.color,
     }))
 
-    const recentRows = recentRecords.map((record) => ({
+    const recentRows = filteredRecords.map((record) => ({
       recordId: record.id,
       dateCreated: toLocalDateTime(record.createdAt || record.created_at),
       inputUser: getInputUser(record),
@@ -734,79 +670,135 @@ export const DashboardPage = () => {
   }
 
   const handleExportExcel = () => {
-    try {
-      setIsExportMenuOpen(false)
-      setIsExportingExcel(true)
-      const { summaryRows, monthlyRows, serviceRows, recentRows } = buildExportData()
+    setPendingExportFormat('excel')
+    setIsExportMenuOpen(false)
+    setIsExportDateFilterOpen(true)
+  }
 
-      const workbook = XLSX.utils.book_new()
+  const handleExportPdfClick = () => {
+    setPendingExportFormat('pdf')
+    setIsExportMenuOpen(false)
+    setIsExportDateFilterOpen(true)
+  }
 
-      const summarySheet = XLSX.utils.aoa_to_sheet([
-        ['Metric', 'Value'],
-        ...summaryRows.map((row) => [row.metric, row.rawValue]),
-      ])
+  const validateDateRange = (startDate, endDate) => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
 
-      const invoiceHeaders = revenueSeries.map((series) => series.label)
-      const monthlySheetRows = [
-        ['Month', ...invoiceHeaders, 'Total Revenue'],
-        ...monthlyRows.map((row) => [
-          row.month,
-          ...invoiceHeaders.map((header) => Number(row[header] || 0)),
-          row.totalRevenueRaw,
-        ]),
-      ]
-      const monthlySheet = XLSX.utils.aoa_to_sheet(monthlySheetRows)
+    // Helper to parse date string in local timezone (not UTC)
+    const parseLocalDate = (dateString) => parseDateInputLocal(dateString)
 
-      const serviceSheet = XLSX.utils.aoa_to_sheet([
-        ['Service Type', 'Count'],
-        ...serviceRows.map((row) => [row.serviceType, row.count]),
-      ])
+    // Check if start date is in the future
+    if (startDate) {
+      const start = parseLocalDate(startDate)
+      if (start > today) {
+        setDateValidationError('Start date cannot be in the future')
+        return false
+      }
+    }
 
-      const recordsSheet = XLSX.utils.aoa_to_sheet([
-        ['Record ID', 'Date Created', 'Input User', 'Tab Name', 'Preview'],
-        ...recentRows.map((row) => [row.recordId, row.dateCreated, row.inputUser, row.tabName, row.preview]),
-      ])
+    // Check if end date is in the future
+    if (endDate) {
+      const end = parseLocalDate(endDate)
+      if (end > today) {
+        setDateValidationError('End date cannot be in the future')
+        return false
+      }
+    }
 
-      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary')
-      XLSX.utils.book_append_sheet(workbook, monthlySheet, 'Monthly Revenue')
-      XLSX.utils.book_append_sheet(workbook, serviceSheet, 'Service Types')
-      XLSX.utils.book_append_sheet(workbook, recordsSheet, 'Recent Records')
+    // Check if end date and start date relationship
+    if (startDate && endDate) {
+      const start = parseLocalDate(startDate)
+      const end = parseLocalDate(endDate)
+      if (end < start) {
+        setDateValidationError('End date must be on or after start date')
+        return false
+      }
+    }
 
-      const file = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
-      saveAs(
-        new Blob([file], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-        `dashboard-analytics-${getExportTimestamp()}.xlsx`,
-      )
-    } catch (error) {
-      console.error('Failed to export Excel analytics report', error)
-    } finally {
-      setIsExportingExcel(false)
+    setDateValidationError('')
+    return true
+  }
+
+  const proceedWithExport = async () => {
+    if (pendingExportFormat === 'excel') {
+      try {
+        setIsExportingExcel(true)
+        const { summaryRows, monthlyRows, serviceRows, recentRows } = buildExportData(filterStartDate, filterEndDate)
+
+        const workbook = XLSX.utils.book_new()
+
+        const summarySheet = XLSX.utils.aoa_to_sheet([
+          ['Metric', 'Value'],
+          ...summaryRows.map((row) => [row.metric, row.rawValue]),
+        ])
+
+        const monthlySheetRows = [
+          ['Month', 'Total Revenue'],
+          ...monthlyRows.map((row) => [row.month, row.totalRevenueRaw]),
+        ]
+        const monthlySheet = XLSX.utils.aoa_to_sheet(monthlySheetRows)
+
+        const serviceSheet = XLSX.utils.aoa_to_sheet([
+          ['Service Type', 'Count'],
+          ...serviceRows.map((row) => [row.serviceType, row.count]),
+        ])
+
+        const recordsSheet = XLSX.utils.aoa_to_sheet([
+          ['Record ID', 'Date Created', 'Input User', 'Tab Name', 'Preview'],
+          ...recentRows.map((row) => [row.recordId, row.dateCreated, row.inputUser, row.tabName, row.preview]),
+        ])
+
+        XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary')
+        XLSX.utils.book_append_sheet(workbook, monthlySheet, 'Monthly Revenue')
+        XLSX.utils.book_append_sheet(workbook, serviceSheet, 'Service Types')
+        XLSX.utils.book_append_sheet(workbook, recordsSheet, 'Recent Records')
+
+        const file = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
+        saveAs(
+          new Blob([file], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+          `dashboard-analytics-${getExportTimestamp()}.xlsx`,
+        )
+      } catch (error) {
+        console.error('Failed to export Excel analytics report', error)
+      } finally {
+        setIsExportingExcel(false)
+        setIsExportDateFilterOpen(false)
+        setFilterStartDate('')
+        setFilterEndDate('')
+        setPendingExportFormat(null)
+      }
+    } else if (pendingExportFormat === 'pdf') {
+      try {
+        setIsExportingPdf(true)
+        const { summaryRows, monthlyRows, serviceRows, recentRows } = buildExportData(filterStartDate, filterEndDate)
+        const generatedAt = new Date().toLocaleString()
+
+        const blob = await pdf(
+          <DashboardAnalyticsPdfDocument
+            generatedAt={generatedAt}
+            summaryRows={summaryRows}
+            monthlyRows={monthlyRows}
+            serviceRows={serviceRows}
+            recentRows={recentRows}
+          />,
+        ).toBlob()
+
+        saveAs(blob, `dashboard-analytics-${getExportTimestamp()}.pdf`)
+      } catch (error) {
+        console.error('Failed to export PDF analytics report', error)
+      } finally {
+        setIsExportingPdf(false)
+        setIsExportDateFilterOpen(false)
+        setFilterStartDate('')
+        setFilterEndDate('')
+        setPendingExportFormat(null)
+      }
     }
   }
 
-  const handleExportPdf = async () => {
-    try {
-      setIsExportMenuOpen(false)
-      setIsExportingPdf(true)
-      const { summaryRows, monthlyRows, serviceRows, recentRows } = buildExportData()
-      const generatedAt = new Date().toLocaleString()
-
-      const blob = await pdf(
-        <DashboardAnalyticsPdfDocument
-          generatedAt={generatedAt}
-          summaryRows={summaryRows}
-          monthlyRows={monthlyRows}
-          serviceRows={serviceRows}
-          recentRows={recentRows}
-        />,
-      ).toBlob()
-
-      saveAs(blob, `dashboard-analytics-${getExportTimestamp()}.pdf`)
-    } catch (error) {
-      console.error('Failed to export PDF analytics report', error)
-    } finally {
-      setIsExportingPdf(false)
-    }
+  const handleExportPdfDeprecated = () => {
+    // This function is deprecated - use proceedWithExport instead
   }
 
   return (
@@ -857,7 +849,7 @@ export const DashboardPage = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={handleExportPdf}
+                      onClick={handleExportPdfClick}
                       className="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
                     >
                       Export as PDF
@@ -1190,6 +1182,89 @@ export const DashboardPage = () => {
           )
         : null}
 
+      {isExportDateFilterOpen
+        ? createPortal(
+            <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4">
+              <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
+                <div className="mb-4 flex items-start justify-between">
+                  <h3 className="text-lg font-semibold text-slate-800">Filter Report by Date Range</h3>
+                  <button
+                    type="button"
+                    className="text-slate-500 text-3xl hover:text-slate-800"
+                    onClick={() => {
+                      setIsExportDateFilterOpen(false)
+                      setFilterStartDate('')
+                      setFilterEndDate('')
+                      setPendingExportFormat(null)
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex flex-col">
+                    <label className="mb-2 text-sm font-medium text-slate-700">Start Date</label>
+                    <input
+                      type="date"
+                      value={filterStartDate}
+                      onChange={(e) => {
+                        setFilterStartDate(e.target.value)
+                        validateDateRange(e.target.value, filterEndDate)
+                      }}
+                      className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300"
+                    />
+                  </div>
+
+                  <div className="flex flex-col">
+                    <label className="mb-2 text-sm font-medium text-slate-700">End Date</label>
+                    <input
+                      type="date"
+                      value={filterEndDate}
+                      onChange={(e) => {
+                        setFilterEndDate(e.target.value)
+                        validateDateRange(filterStartDate, e.target.value)
+                      }}
+                      className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300"
+                    />
+                  </div>
+
+                  {dateValidationError && (
+                    <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{dateValidationError}</p>
+                  )}
+
+                  <p className="text-xs text-slate-500">Leave dates empty to export all data without filtering.</p>
+                </div>
+
+                <div className="mt-6 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsExportDateFilterOpen(false)
+                      setFilterStartDate('')
+                      setFilterEndDate('')
+                      setPendingExportFormat(null)
+                      setDateValidationError('')
+                    }}
+                    className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={proceedWithExport}
+                    disabled={isExportingExcel || isExportingPdf || dateValidationError !== ''}
+                    className="rounded-md bg-[#0b2a32] px-4 py-2 text-sm text-white hover:bg-[#0a1f26] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isExportingExcel ? 'Exporting Excel...' : isExportingPdf ? 'Exporting PDF...' : 'Generate Report'}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+
       {viewRecordTarget
         ? createPortal(
             <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4">
@@ -1211,6 +1286,10 @@ export const DashboardPage = () => {
                   </button>
                 </div>
 
+                <div className="mb-3 flex items-start items-center gap-4">
+                  <div className="text-sm text-slate-600"><span className="font-semibold">Input by:</span> {getInputUser(viewRecordTarget)}</div>
+                </div>
+
                 {viewRecordEntries.length === 0 ? (
                   <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-4 text-sm text-slate-500">No data fields in this record.</p>
                 ) : (
@@ -1218,7 +1297,7 @@ export const DashboardPage = () => {
                     <table className="w-full border-separate border-spacing-y-0 text-sm">
                       <thead>
                         <tr className="bg-slate-100 text-left text-slate-700">
-                          <th className="px-4 py-2">Field</th>
+                          <th className="px-4 py-2">Content</th>
                           <th className="px-4 py-2">Value</th>
                         </tr>
                       </thead>
