@@ -103,6 +103,13 @@ const pdfStyles = StyleSheet.create({
   },
 })
 
+const stripLeadingSign = (value) => {
+  if (value === null || value === undefined) return ''
+  const str = String(value)
+  // Remove any leading non-digit characters (currency symbols, ±, +, - etc.)
+  return str.replace(/^[^0-9]*/, '')
+}
+
 const polarToCartesian = (cx, cy, r, angleInDegrees) => {
   const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180
   return {
@@ -213,7 +220,7 @@ const DashboardAnalyticsPdfDocument = ({
         {summaryRows.map((row) => (
           <View style={pdfStyles.row} key={row.metric}>
             <Text style={pdfStyles.label}>{row.metric}</Text>
-            <Text style={pdfStyles.value}>{row.value}</Text>
+            <Text style={pdfStyles.value}>{stripLeadingSign(row.value)}</Text>
           </View>
         ))}
       </View>
@@ -223,7 +230,7 @@ const DashboardAnalyticsPdfDocument = ({
         {monthlyRows.slice(0, 12).map((row) => (
           <View style={pdfStyles.row} key={row.month}>
             <Text style={pdfStyles.label}>{row.month}</Text>
-            <Text style={pdfStyles.value}>{row.totalRevenue}</Text>
+            <Text style={pdfStyles.value}>{stripLeadingSign(row.totalRevenue)}</Text>
           </View>
         ))}
       </View>
