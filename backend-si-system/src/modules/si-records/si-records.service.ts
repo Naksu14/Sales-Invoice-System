@@ -8,6 +8,7 @@ import { Spreadsheet } from '../spreadsheets/entities/spreadsheet.entity';
 import { SheetColumn } from '../sheet-column/entities/sheet-column.entity';
 import { SiUser } from '../si-users/entities/si-user.entity';
 import { GoogleSheetsService } from '../spreadsheets/google-sheets.service';
+import { formatValueForSheet } from '../../utils/formatters';
 
 @Injectable()
 export class SiRecordsService {
@@ -59,7 +60,7 @@ export class SiRecordsService {
 
     const rowValues = columns.map((c) => {
       const val = data[c.dbFieldName];
-      return val !== undefined && val !== null ? String(val) : '';
+      return formatValueForSheet(val, c.dataType, c.columnName);
     });
 
     await this.googleSheetsService.appendRow(
@@ -79,7 +80,7 @@ export class SiRecordsService {
 
     return columns.map((column) => {
       const value = data?.[column.dbFieldName]
-      return value === undefined || value === null ? '' : String(value)
+      return formatValueForSheet(value, column.dataType, column.columnName)
     })
   }
 
@@ -175,8 +176,8 @@ export class SiRecordsService {
           }
         }
       }
-    } catch (err) {
-      console.error('[GoogleSheets] Failed to sync SI record update:', err.message)
+    } catch (err: any) {
+      console.error('[GoogleSheets] Failed to sync SI record update:', err?.message || err)
     }
 
     return updatedRecord;

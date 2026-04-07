@@ -23,6 +23,7 @@ import { getSpreadsheets } from '../../services/spreadsheetsService'
 import { getColumns, deleteColumn } from '../../services/columnTableService'
 import EditColumnModal from '../../components/modals/EditColumnModal'
 import GenerateRowModal from '../../components/modals/GenerateRowModal'
+import ImportRecordsModal from '../../components/modals/ImportRecordsModal'
 import EditRecordModal from '../../components/modals/EditRecordModal'
 import { getSiRecordsBySheet, deleteSiRecord } from '../../services/siRecordsService'
 import { SkeletonLoader } from '../../components/ui/SkeletonLoader'
@@ -65,6 +66,7 @@ export const SalesInvoicePage = () => {
   const [colDeleteTarget, setColDeleteTarget] = useState(null)
   const [isManageColsOpen, setIsManageColsOpen] = useState(false)
   const [isGenerateRowOpen, setIsGenerateRowOpen] = useState(false)
+  const [isImportOpen, setIsImportOpen] = useState(false)
   const [isEditRecordOpen, setIsEditRecordOpen] = useState(false)
   const [editRecordTarget, setEditRecordTarget] = useState(null)
   const [recordDeleteOpen, setRecordDeleteOpen] = useState(false)
@@ -271,6 +273,16 @@ export const SalesInvoicePage = () => {
                               className="w-56 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300"
                             />
                             <Button variant="primary" leftIcon={<AddCircleOutlineIcon fontSize="small" />} size="md" onClick={() => setIsGenerateRowOpen(true)}  tooltip="Create Invoice">Create Invoice</Button>
+                            <Button
+                              variant="secondary"
+                              size="md"
+                              leftIcon={<FileUploadIcon fontSize="small" />}
+                              onClick={() => setIsImportOpen(true)}
+                              tooltip="Import Excel or CSV"
+                              className='font-semibold'
+                            >
+                              Import
+                            </Button>
                             <div>
                               <Tooltip title="Export">
                                 <div className="inline-flex">
@@ -470,6 +482,16 @@ export const SalesInvoicePage = () => {
                 spreadsheetId={activeSheetId}
                 tableName={activeSheet?.sheetTabName || 'this table'}
                 onSubmit={async () => {
+                  await queryClient.invalidateQueries({ queryKey: ['si-records', activeSheetId] })
+                }}
+              />
+              <ImportRecordsModal
+                isOpen={isImportOpen}
+                onClose={() => setIsImportOpen(false)}
+                spreadsheetId={activeSheetId}
+                sheetName={activeSheet?.sheetTabName || 'this table'}
+                columns={columns}
+                onSuccess={async () => {
                   await queryClient.invalidateQueries({ queryKey: ['si-records', activeSheetId] })
                 }}
               />
