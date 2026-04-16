@@ -8,7 +8,7 @@ import { Spreadsheet } from '../spreadsheets/entities/spreadsheet.entity';
 import { SheetColumn } from '../sheet-column/entities/sheet-column.entity';
 import { SiUser } from '../si-users/entities/si-user.entity';
 import { GoogleSheetsService } from '../spreadsheets/google-sheets.service';
-import { formatValueForSheet } from '../../utils/formatters';
+import { formatValueForSheet, normalizeValueForStorage } from '../../utils/formatters';
 
 @Injectable()
 export class SiRecordsService {
@@ -24,9 +24,31 @@ export class SiRecordsService {
     private googleSheetsService: GoogleSheetsService,
   ) {}
 
+  private normalizeRecordData(columns: SheetColumn[], data: Record<string, unknown>) {
+    const normalizedData: Record<string, unknown> = { ...(data || {}) };
+
+    columns.forEach((column) => {
+      const key = column.dbFieldName;
+      if (!Object.prototype.hasOwnProperty.call(normalizedData, key)) return;
+
+      const rawValue = normalizedData[key];
+      normalizedData[key] = normalizeValueForStorage(rawValue, column.dataType, column.columnName);
+    });
+
+    return normalizedData;
+  }
+
+  private async getSpreadsheetColumns(spreadsheetId: number) {
+    return this.sheetColumnRepository.find({
+      where: { spreadsheet: { id: spreadsheetId } },
+      order: { columnOrder: 'ASC' },
+    });
+  }
+
   async create(createSiRecordDto: CreateSiRecordDto) {
     const spreadsheet = await this.spreadsheetRepository.findOne({ where: { id: createSiRecordDto.sheetId } });
     if (!spreadsheet) throw new NotFoundException('Spreadsheet not found');
+    const columns = await this.getSpreadsheetColumns(spreadsheet.id);
     let inputUser: SiUser | undefined = undefined
     if (createSiRecordDto.inputUserId !== undefined && createSiRecordDto.inputUserId !== null) {
       const foundUser = await this.siUserRepository.findOne({ where: { user_id: createSiRecordDto.inputUserId } })
@@ -34,15 +56,17 @@ export class SiRecordsService {
       inputUser = foundUser
     }
 
+    const normalizedData = this.normalizeRecordData(columns, createSiRecordDto.data || {});
+
     const siRecord = this.siRecordRepository.create({
-      data: createSiRecordDto.data,
+      data: normalizedData,
       spreadsheet,
       inputUser,
     });
     const saved = await this.siRecordRepository.save(siRecord);
 
     // Append the row to the live Google Sheet asynchronously (don't block response)
-    this.appendToGoogleSheet(spreadsheet, createSiRecordDto.data).catch((err) =>
+    this.appendToGoogleSheet(spreadsheet, normalizedData).catch((err) =>
       console.error('[GoogleSheets] Failed to append row:', err.message),
     );
 
@@ -105,11 +129,13 @@ export class SiRecordsService {
   async update(id: number, updateSiRecordDto: UpdateSiRecordDto) {
     const existing = await this.siRecordRepository.findOne({ where: { id }, relations: ['spreadsheet'] });
     if (!existing) throw new NotFoundException('SI record not found');
+    const targetSpreadsheetId = updateSiRecordDto.sheetId ?? existing.spreadsheet?.id;
+    const columns = targetSpreadsheetId ? await this.getSpreadsheetColumns(targetSpreadsheetId) : [];
 
     const updatePayload: any = {};
 
     if (updateSiRecordDto.data !== undefined) {
-      updatePayload.data = updateSiRecordDto.data;
+      updatePayload.data = this.normalizeRecordData(columns, updateSiRecordDto.data || {});
     }
 
     if (updateSiRecordDto.sheetId !== undefined) {

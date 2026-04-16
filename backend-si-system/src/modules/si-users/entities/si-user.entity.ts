@@ -8,23 +8,23 @@ export enum SiUserRole {
 @Entity('user_si')
 export class SiUser {
 	@PrimaryGeneratedColumn({ name: 'user_id', type: 'int' })
-	user_id: number;
+	user_id!: number;
 
 	@Column({ name: 'full_name', type: 'varchar', length: 255 })
-	full_name: string;
+	full_name!: string;
 
 	@Column({ type: 'varchar', length: 255, unique: true })
-	email: string;
+	email!: string;
 
 	@Column({ type: 'varchar', length: 255 })
-	password: string;
+	password!: string;
 
 	@Column({ type: 'enum', enum: SiUserRole })
-	role: SiUserRole;
+	role!: SiUserRole;
 
 	@Column({ type: 'int', nullable: true })
-	verifycode: number | null;
+	verifycode!: number | null;
 
 	@CreateDateColumn({ name: 'created_at', type: 'timestamp' })
-	created_at: Date;
+	created_at!: Date;
 }

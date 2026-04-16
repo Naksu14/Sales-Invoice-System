@@ -111,3 +111,29 @@ export function formatValueForSheet(
 
   return String(value);
 }
+
+/**
+ * Normalize a value before saving to the database.
+ * Accounting columns are stored as fixed 2-decimal strings so trailing zeros are preserved.
+ */
+export function normalizeValueForStorage(
+  value: any,
+  dataType: string,
+  columnName: string,
+): any {
+  if (value === null || value === undefined || value === '') {
+    return value;
+  }
+
+  const type = (dataType || 'text').toLowerCase();
+
+  if (type === 'number' && isAccountingColumn(columnName)) {
+    return formatAccountingNumber(value);
+  }
+
+  if (isAccountingColumn(columnName)) {
+    return formatAccountingNumber(value);
+  }
+
+  return value;
+}

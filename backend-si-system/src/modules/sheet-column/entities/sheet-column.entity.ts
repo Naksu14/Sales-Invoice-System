@@ -4,27 +4,27 @@ import { Spreadsheet } from '../../spreadsheets/entities/spreadsheet.entity'
 @Entity({ name: 'sheet_columns' })
 export class SheetColumn {
 	@PrimaryGeneratedColumn()
-	id: number
+	id!: number
 
 	@ManyToOne(() => Spreadsheet, { eager: false, onDelete: 'CASCADE' })
 	@JoinColumn({ name: 'spreadsheet_id' })
-	spreadsheet: Spreadsheet
+	spreadsheet!: Spreadsheet
 
 	@Column({ name: 'column_name', type: 'varchar', length: 200 })
-	columnName: string
+	columnName!: string
 
 	@Column({ name: 'db_field_name', type: 'varchar', length: 200 })
-	dbFieldName: string
+	dbFieldName!: string
 
 	@Column({ name: 'data_type', type: 'varchar', length: 20, default: 'text' })
-	dataType: string
+	dataType!: string
 
 	@Column({ name: 'dropdown_options', type: 'text', nullable: true })
 	dropdownOptions?: string | null
 
 	@Column({ name: 'column_order', type: 'int' })
-	columnOrder: number
+	columnOrder!: number
 
 	@Column({ name: 'is_required', type: 'boolean', default: false })
-	isRequired: boolean
+	isRequired!: boolean
 }

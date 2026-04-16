@@ -3,6 +3,11 @@ import { google } from 'googleapis';
 
 @Injectable()
 export class GoogleSheetsService {
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) return error.message
+    return String(error)
+  }
+
   private columnIndexToLetter(columnIndex: number): string {
     let index = columnIndex
     let letters = ''
@@ -126,8 +131,8 @@ export class GoogleSheetsService {
 
       console.warn(`[GoogleSheets] Web app append unsupported/error response: ${payload?.message || 'Unknown error'}`)
       return false
-    } catch (err) {
-      console.warn(`[GoogleSheets] Web app append call failed: ${err.message}`)
+    } catch (err: unknown) {
+      console.warn(`[GoogleSheets] Web app append call failed: ${this.getErrorMessage(err)}`)
       return false
     }
   }
@@ -166,8 +171,8 @@ export class GoogleSheetsService {
 
       console.warn(`[GoogleSheets] Web app update unsupported/error response: ${payload?.message || 'Unknown error'}`)
       return false
-    } catch (err) {
-      console.warn(`[GoogleSheets] Web app update call failed: ${err.message}`)
+    } catch (err: unknown) {
+      console.warn(`[GoogleSheets] Web app update call failed: ${this.getErrorMessage(err)}`)
       return false
     }
   }
@@ -213,9 +218,9 @@ export class GoogleSheetsService {
       requestBody: { values: [rowValues] },
     });
 
-  } catch (err) {
+  } catch (err: unknown) {
     throw new InternalServerErrorException(
-      `Google Sheets write failed: ${err.message}`,
+      `Google Sheets write failed: ${this.getErrorMessage(err)}`,
     );
   }
 }
@@ -291,9 +296,9 @@ export class GoogleSheetsService {
 
     return true;
 
-  } catch (err) {
+  } catch (err: unknown) {
     throw new InternalServerErrorException(
-      `Google Sheets update failed: ${err.message}`,
+      `Google Sheets update failed: ${this.getErrorMessage(err)}`,
     );
   }
 }
