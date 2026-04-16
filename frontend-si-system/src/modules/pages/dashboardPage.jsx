@@ -106,6 +106,23 @@ const getAmountFromRecord = (record, preferredAmountKeys = []) => {
   return 0
 }
 
+const getServiceTypesFromRecord = (record) => {
+  const data = record?.data || {}
+  const rawValue = data.type_of_service || data.typeOfService || data.service_type || data.serviceType || ''
+
+  if (Array.isArray(rawValue)) {
+    return rawValue.map((item) => String(item).trim()).filter(Boolean)
+  }
+
+  const normalized = String(rawValue).trim()
+  if (!normalized) return []
+
+  return normalized
+    .split(/\r?\n|,|\|/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
 export const DashboardPage = () => {
   const { data: invoiceNames = EMPTY_ARRAY, isLoading: loadingInvoices, error: invoicesError } = useQuery({ queryKey: ['invoiceNames'], queryFn: getInvoiceNames })
   const { data: spreadsheets = EMPTY_ARRAY, isLoading: loadingSheets, error: sheetsError } = useQuery({ queryKey: ['spreadsheets'], queryFn: getSpreadsheets })
@@ -342,16 +359,16 @@ export const DashboardPage = () => {
         // labelMap left empty — inference from a static list removed
         const labelMap = {}
 
-        // count ONLY explicit type_of_service fields; do NOT include inferred values in counts
         allRecords.forEach((rec) => {
-          const data = rec?.data || {}
-          const svcRaw = data.type_of_service || data.typeOfService || data.service_type || data.serviceType || ''
-          const svc = svcRaw.toString().trim()
+          const serviceTypes = getServiceTypesFromRecord(rec)
 
-          if (svc) {
-            counts[svc] = (counts[svc] || 0) + 1
+          if (serviceTypes.length > 0) {
+            serviceTypes.forEach((svc) => {
+              counts[svc] = (counts[svc] || 0) + 1
+            })
           } else {
             // try to infer from description/invoice text for debugging, but don't count it
+            const data = rec?.data || {}
             const desc = (data.description || data.desc || data.details || data.invoice || '').toString().toLowerCase()
             let inferredValue = ''
             for (const key of Object.keys(labelMap)) {
@@ -688,11 +705,11 @@ export const DashboardPage = () => {
         const monthKey = `${recordDate.getFullYear()}-${String(recordDate.getMonth() + 1).padStart(2, '0')}`
         monthTotals.set(monthKey, (monthTotals.get(monthKey) || 0) + amount)
 
-        const data = record?.data || {}
-        const serviceTypeRaw = data.type_of_service || data.typeOfService || data.service_type || data.serviceType || ''
-        const serviceType = serviceTypeRaw.toString().trim()
-        if (serviceType) {
-          serviceTypeCounts[serviceType] = (serviceTypeCounts[serviceType] || 0) + 1
+        const serviceTypes = getServiceTypesFromRecord(record)
+        if (serviceTypes.length > 0) {
+          serviceTypes.forEach((serviceType) => {
+            serviceTypeCounts[serviceType] = (serviceTypeCounts[serviceType] || 0) + 1
+          })
         }
 
         filteredRecords.push({

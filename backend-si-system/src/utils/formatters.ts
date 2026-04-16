@@ -35,7 +35,7 @@ export function formatDate(value: any): string {
 }
 
 /**
- * Format a number with accounting format: "1,000.0"
+ * Format a number with accounting format: "1,000.00"
  */
 export function formatAccountingNumber(value: any): string {
   if (value === null || value === undefined || value === '') return '';
@@ -46,10 +46,10 @@ export function formatAccountingNumber(value: any): string {
     return String(value);
   }
 
-  // Format with comma separators and one decimal place
+  // Format with comma separators and two decimal places
   const formatted = num.toLocaleString('en-US', {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   });
 
   return formatted;

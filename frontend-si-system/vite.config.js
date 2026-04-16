@@ -10,7 +10,7 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:3004' , // Point to your NestJS port
+        target: 'http://192.168.110.50:3004' , // Point to your NestJS port
         changeOrigin: true,
         // Optional: remove /api from the path before it hits NestJS
         // rewrite: (path) => path.replace(/^\/api/, '') 
